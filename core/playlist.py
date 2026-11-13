@@ -1,3 +1,5 @@
+from core.user_storage import atomic_json
+from core.user_storage import scoped_path, serialized
 import os
 import json
 import uuid
@@ -10,30 +12,32 @@ PLAYLISTS_JSON = os.path.join(STORAGE_DIR, "playlists.json")
 
 def ensure_playlists_file():
     """Garante que a pasta storage e o arquivo playlists.json existam."""
-    os.makedirs(STORAGE_DIR, exist_ok=True)
-    if not os.path.exists(PLAYLISTS_JSON):
-        with open(PLAYLISTS_JSON, "w", encoding="utf-8") as f:
+    os.makedirs(scoped_path(STORAGE_DIR, ""), exist_ok=True)
+    if not os.path.exists(scoped_path(PLAYLISTS_JSON, "playlists.json")):
+        with open(scoped_path(PLAYLISTS_JSON, "playlists.json"), "w", encoding="utf-8") as f:
             json.dump([], f, ensure_ascii=False, indent=2)
 
 
+@serialized
 def load_playlists() -> List[Dict[str, Any]]:
     """Carrega as playlists do arquivo JSON local."""
     ensure_playlists_file()
     try:
-        with open(PLAYLISTS_JSON, "r", encoding="utf-8") as f:
+        with open(scoped_path(PLAYLISTS_JSON, "playlists.json"), "r", encoding="utf-8") as f:
             return json.load(f)
     except Exception as e:
-        print(f"Erro ao carregar {PLAYLISTS_JSON}: {e}")
+        print(f"Erro ao carregar {scoped_path(PLAYLISTS_JSON, "playlists.json")}: {e}")
         return []
 
 
+@serialized
 def save_playlists(playlists: List[Dict[str, Any]]):
     """Salva a lista de playlists no arquivo JSON local."""
     ensure_playlists_file()
-    with open(PLAYLISTS_JSON, "w", encoding="utf-8") as f:
-        json.dump(playlists, f, ensure_ascii=False, indent=2)
+    atomic_json(scoped_path(PLAYLISTS_JSON, "playlists.json"), playlists)
 
 
+@serialized
 def create_playlist(name: str) -> Dict[str, Any]:
     """Cria uma nova playlist personalizada."""
     playlists = load_playlists()
@@ -51,6 +55,7 @@ def create_playlist(name: str) -> Dict[str, Any]:
     return new_playlist
 
 
+@serialized
 def delete_playlist(playlist_id: str) -> bool:
     """Exclui uma playlist pelo ID."""
     playlists = load_playlists()
@@ -62,6 +67,7 @@ def delete_playlist(playlist_id: str) -> bool:
     return False
 
 
+@serialized
 def rename_playlist(playlist_id: str, new_name: str) -> bool:
     """Renomeia uma playlist existente."""
     playlists = load_playlists()
@@ -76,6 +82,7 @@ def rename_playlist(playlist_id: str, new_name: str) -> bool:
     return updated
 
 
+@serialized
 def add_track_to_playlist(playlist_id: str, track_id: str) -> bool:
     """Adiciona o ID de uma faixa ao final de uma playlist."""
     playlists = load_playlists()
@@ -91,6 +98,7 @@ def add_track_to_playlist(playlist_id: str, track_id: str) -> bool:
     return updated
 
 
+@serialized
 def remove_track_from_playlist(playlist_id: str, track_id: str) -> bool:
     """Remove uma faixa de uma playlist específica."""
     playlists = load_playlists()
@@ -106,6 +114,7 @@ def remove_track_from_playlist(playlist_id: str, track_id: str) -> bool:
     return updated
 
 
+@serialized
 def reorder_playlist_tracks(playlist_id: str, new_track_ids: List[str]) -> bool:
     """Reordena a lista de IDs de faixas de uma playlist."""
     playlists = load_playlists()
@@ -120,6 +129,7 @@ def reorder_playlist_tracks(playlist_id: str, new_track_ids: List[str]) -> bool:
     return updated
 
 
+@serialized
 def get_playlist_by_id(playlist_id: str) -> Optional[Dict[str, Any]]:
     """Busca uma playlist pelo ID."""
     playlists = load_playlists()

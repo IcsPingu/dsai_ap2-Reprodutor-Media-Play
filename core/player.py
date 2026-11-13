@@ -97,7 +97,9 @@ class _PygameThread(threading.Thread):
 
 
 class AudioPlayer:
-    def __init__(self):
+    def __init__(self, browser=False):
+        self.browser = browser
+        self.command_version = 0
         self.queue: List[Dict[str, Any]] = []
         self.original_queue: List[Dict[str, Any]] = []
         self.current_index: int = -1
@@ -113,7 +115,7 @@ class AudioPlayer:
         self._paused_at_pos: float = 0.0
 
         self._thread: Optional[_PygameThread] = (
-            _PygameThread.get_instance() if PYGAME_AVAILABLE else None
+            _PygameThread.get_instance() if PYGAME_AVAILABLE and not browser else None
         )
 
     # ------------------------------------------------------------------
@@ -121,6 +123,7 @@ class AudioPlayer:
     # ------------------------------------------------------------------
 
     def _send(self, action: str, **kwargs) -> Any:
+        self.command_version += 1
         if self._thread and self._thread.initialized:
             return self._thread.send(action, **kwargs)
         return None
@@ -229,6 +232,8 @@ class AudioPlayer:
 
     def check_auto_next(self) -> bool:
         """Verifica se a musica atual terminou e avanca para a proxima se necessario."""
+        if self.browser:
+            return False
         if self.is_playing and not self.is_paused:
             track = self.get_current_track()
             if track:
@@ -244,6 +249,8 @@ class AudioPlayer:
         if not self.is_playing:
             return 0.0
         if self.is_paused:
+            return self._paused_at_pos
+        if self.browser:
             return self._paused_at_pos
         elapsed = time.time() - self._play_start_time
         return self._play_start_pos + elapsed

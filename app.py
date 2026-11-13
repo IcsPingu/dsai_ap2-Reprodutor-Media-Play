@@ -1,3 +1,4 @@
+from html import escape
 import os
 import streamlit as st
 
@@ -11,6 +12,7 @@ st.set_page_config(
 
 from core.library import (
     load_library,
+    set_favorite,
     scan_directory,
     import_files,
     update_track_metadata,
@@ -27,6 +29,8 @@ from core.playlist import (
     remove_track_from_playlist,
 )
 from core.player import AudioPlayer
+from core.user_storage import authenticate, register, select_user
+from core.library_filters import filter_library, missing_metadata, track_format
 from ui.components import (
     load_css,
     render_header,
@@ -38,9 +42,42 @@ from ui.components import (
 CSS_FILE = os.path.join("assets", "style.css")
 load_css(CSS_FILE)
 
+# Authentication precedes every library or playlist read.
+if "identity" not in st.session_state:
+    select_user(None)
+    st.title("Sua biblioteca musical")
+    st.caption("Entre para acessar músicas e playlists da sua conta.")
+    st.info("Demonstração com dados temporários: contas, músicas e playlists podem ser perdidas quando o Streamlit reiniciar. Guarde os arquivos originais.")
+    with st.form("account_login"):
+        username = st.text_input("Usuário", max_chars=40)
+        password = st.text_input("Senha", type="password", max_chars=256)
+        action = st.radio("Ação", ["Entrar", "Criar conta"], horizontal=True)
+        submitted = st.form_submit_button("Continuar")
+    if submitted:
+        try:
+            identity = register(username, password) if action == "Criar conta" else authenticate(username, password)
+            if identity:
+                st.session_state.clear()
+                st.session_state.identity = identity
+                st.rerun()
+            else:
+                st.error("Usuário ou senha inválidos.")
+        except ValueError as error:
+            st.error(str(error))
+    st.stop()
+
+select_user(st.session_state.identity)
+with st.sidebar:
+    st.caption(f"Conta: {st.session_state.identity}")
+    st.caption("Dados temporários neste deploy. Mantenha uma cópia das suas músicas.")
+    if st.button("Sair"):
+        st.session_state.clear()
+        select_user(None)
+        st.rerun()
+
 # Inicialização do estado da sessão (st.session_state)
 if "player" not in st.session_state:
-    st.session_state.player = AudioPlayer()
+    st.session_state.player = AudioPlayer(browser=True)
 
 if "library" not in st.session_state:
     st.session_state.library = load_library()
@@ -150,7 +187,7 @@ if menu == "🎧 Tocando Agora":
                         # Atualiza a faixa atual na fila
                         for item in player.queue:
                             if item["id"] == current_tr["id"]:
-                                item["cover_path"] = os.path.join("storage", "covers", f"cover_{current_tr['id']}.png")
+                                item["cover_path"] = next(t["cover_path"] for t in st.session_state.library if t["id"] == current_tr["id"])
                         st.toast("Capa atualizada com sucesso! 🎨")
                         st.rerun()
                     else:
@@ -171,9 +208,9 @@ if menu == "🎧 Tocando Agora":
                 with col_i1:
                     st.markdown(f"<p style='margin-top: 6px;'>{'▶' if is_active else str(idx+1)}</p>", unsafe_allow_html=True)
                 with col_i2:
-                    st.markdown(f"<p style='margin-top: 6px; font-weight: {'bold' if is_active else 'normal'}; color: {'#00e5ff' if is_active else '#ffffff'};'>{item.get('title')}</p>", unsafe_allow_html=True)
+                    st.markdown(f"<p style='margin-top: 6px; font-weight: {'bold' if is_active else 'normal'}; color: {'#00e5ff' if is_active else '#ffffff'};'>{escape(str(item.get('title', '')))}</p>", unsafe_allow_html=True)
                 with col_i3:
-                    st.markdown(f"<p style='margin-top: 6px; color: #8ab4f8;'>{item.get('artist')}</p>", unsafe_allow_html=True)
+                    st.markdown(f"<p style='margin-top: 6px; color: #8ab4f8;'>{escape(str(item.get('artist', '')))}</p>", unsafe_allow_html=True)
                 with col_i4:
                     if st.button("▶ Tocar", key=f"queue_play_{idx}"):
                         player.current_index = idx
@@ -192,14 +229,15 @@ elif menu == "📚 Biblioteca de Mídias":
     search_query = st.text_input("🔍 Buscar por título, artista ou álbum:", "")
 
     library = st.session_state.library
-    filtered_lib = list(library)
-
-    if search_query:
-        sq = search_query.lower()
-        filtered_lib = [
-            t for t in filtered_lib
-            if sq in t["title"].lower() or sq in t["artist"].lower() or sq in t["album"].lower()
-        ]
+    formats = st.multiselect("Formato", ["mp3", "wav", "flac"])
+    artists = st.multiselect("Artista", sorted({t.get("artist", "") for t in library if t.get("artist")}))
+    albums = st.multiselect("Álbum", sorted({t.get("album", "") for t in library if t.get("album")}))
+    favorites = st.checkbox("Somente favoritas")
+    incomplete = st.checkbox("Somente faixas com metadados incompletos")
+    sort_labels = {"Título": "title", "Artista": "artist", "Álbum": "album", "Duração": "duration", "Formato": "format"}
+    sort_label = st.selectbox("Ordenar por", list(sort_labels))
+    descending = st.checkbox("Ordem decrescente")
+    filtered_lib = filter_library(library, search_query, formats, artists, albums, favorites, incomplete, sort_labels[sort_label], descending)
 
     if not filtered_lib:
         st.warning("Nenhuma música encontrada na biblioteca local.")
@@ -226,6 +264,14 @@ elif menu == "📚 Biblioteca de Mídias":
 
             with c_title:
                 st.markdown(f"**{track['title']}**")
+                st.caption(track_format(track).upper())
+                if missing_metadata(track):
+                    st.caption("Metadados incompletos: artista ou álbum")
+                favorite = bool(track.get("favorite", False))
+                if st.button("Remover favorita" if favorite else "Favoritar", key=f"favorite_{track['id']}"):
+                    set_favorite(track["id"], not favorite)
+                    st.session_state.library = load_library()
+                    st.rerun()
             with c_artist:
                 st.caption(track['artist'])
             with c_album:
@@ -355,7 +401,7 @@ elif menu == "🎵 Playlists":
                 with col_pt1:
                     st.write(f"{idx+1}.")
                 with col_pt2:
-                    st.markdown(f"**{tr['title']}** - <span style='color:#8ab4f8'>{tr['artist']}</span>", unsafe_allow_html=True)
+                    st.markdown(f"**{tr['title']}** - <span style='color:#8ab4f8'>{escape(str(tr['artist']))}</span>", unsafe_allow_html=True)
                 with col_pt3:
                     st.caption(tr['album'])
                 with col_pt4:
@@ -373,14 +419,14 @@ elif menu == "📁 Importar Áudios":
     st.markdown("<div class='wmp-card'>", unsafe_allow_html=True)
     st.subheader("📁 Importar Músicas MP3")
 
-    tab_upload, tab_folder = st.tabs(["🎵 Selecionar Arquivos MP3 (Explorador)", "📂 Escanear Pasta Inteira"])
+    tab_upload, tab_folder = st.tabs(["🎵 Selecionar Arquivos de áudio (Explorador)", "📂 Escanear Pasta Inteira"])
 
     with tab_upload:
-        st.markdown("Clique abaixo para abrir o **Explorador de Arquivos do Windows** e selecionar um ou vários arquivos `.mp3` do seu computador:")
+        st.markdown("Clique abaixo para abrir o **Explorador de Arquivos do Windows** e selecionar um ou vários arquivos `.mp3`, `.wav` e `.flac` do seu computador:")
         
         uploaded_files = st.file_uploader(
             "Selecione as músicas MP3:",
-            type=["mp3"],
+            type=["mp3", "wav", "flac"],
             accept_multiple_files=True,
             help="Abre o explorador de arquivos nativo do seu sistema",
         )
@@ -388,12 +434,17 @@ elif menu == "📁 Importar Áudios":
         if uploaded_files:
             if st.button(f"📥 Processar e Importar {len(uploaded_files)} Arquivo(s)", use_container_width=True):
                 with st.spinner("Importando músicas e extraindo metadados/capas..."):
-                    updated_lib = import_uploaded_files(uploaded_files)
+                    try:
+                        updated_lib = import_uploaded_files(uploaded_files)
+                    except ValueError as error:
+                        st.error(str(error))
+                        st.stop()
                     st.session_state.library = updated_lib
                     st.success(f"Sucesso! {len(uploaded_files)} música(s) adicionada(s) à sua biblioteca.")
                     st.rerun()
 
     with tab_folder:
+        st.info("Na conta web, importe pelo upload. A varredura de pastas do servidor está desabilitada.")
         st.markdown("Abra a janela do **Explorador de Arquivos do Windows** para selecionar a pasta com suas músicas:")
 
         if "selected_folder_path" not in st.session_state:
@@ -408,17 +459,21 @@ elif menu == "📁 Importar Áudios":
                 key="folder_path_input",
             )
         with c_f2:
-            if st.button("📂 Escolher Pasta", use_container_width=True):
+            if st.button("📂 Escolher Pasta", use_container_width=True, disabled=True):
                 chosen_folder = open_folder_picker_dialog()
                 if chosen_folder:
                     st.session_state.selected_folder_path = chosen_folder
                     st.rerun()
 
-        if st.button("🔍 Varrer e Importar Pasta", use_container_width=True):
+        if st.button("🔍 Varrer e Importar Pasta", use_container_width=True, disabled=True):
             target_path = folder_path if folder_path else st.session_state.selected_folder_path
             if target_path and os.path.exists(target_path):
-                with st.spinner("Escaneando arquivos MP3 e extraindo metadados ID3..."):
-                    scanned_list = scan_directory(target_path)
+                with st.spinner("Escaneando MP3, WAV e FLAC e extraindo metadados..."):
+                    try:
+                        scanned_list = scan_directory(target_path)
+                    except ValueError as error:
+                        st.error(str(error))
+                        st.stop()
                     st.session_state.library = scanned_list
                     st.success(f"Varredura concluída! Biblioteca atualizada com {len(scanned_list)} faixas.")
                     st.rerun()

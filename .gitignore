@@ -1,0 +1,9 @@
+
+# Python local test artifacts
+__pycache__/
+*.py[cod]
+
+.test-tools/
+storage/private/
+.streamlit/secrets.toml
+artifacts/

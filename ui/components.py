@@ -1,3 +1,5 @@
+from html import escape
+from core.audio_formats import audio_mime_type
 import os
 import base64
 import streamlit as st
@@ -81,9 +83,9 @@ def render_now_playing_panel(track: Optional[Dict[str, Any]], is_playing: bool =
                 <img src="{cover_src}" alt="Cover Art" />
             </div>
             {eq_bars}
-            <h3 style="margin:5px 0 2px 0; color:#ffffff; font-size:1.25rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{title}</h3>
-            <p style="margin:0 0 4px 0; color:#00b4ff; font-weight:600;">{artist}</p>
-            <p style="margin:0; color:#8ab4f8; font-size:0.85rem;">Álbum: {album} | Gênero: {genre}</p>
+            <h3 style="margin:5px 0 2px 0; color:#ffffff; font-size:1.25rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{escape(str(title))}</h3>
+            <p style="margin:0 0 4px 0; color:#00b4ff; font-weight:600;">{escape(str(artist))}</p>
+            <p style="margin:0; color:#8ab4f8; font-size:0.85rem;">Álbum: {escape(str(album))} | Gênero: {escape(str(genre))}</p>
         </div>
         """,
         unsafe_allow_html=True,
@@ -148,6 +150,11 @@ def render_controls_bar(
     on_repeat: Callable,
 ):
     """Renderiza a barra flutuante de transporte e controles com st.audio para o browser."""
+    if player.browser:
+        from ui.browser_player import render_browser_player
+        render_browser_player(player)
+        return
+
     current_track = player.get_current_track()
     duration = current_track.get("duration", 0) if current_track else 0
 
@@ -162,13 +169,13 @@ def render_controls_bar(
                     audio_bytes = f.read()
                 st.audio(
                     audio_bytes,
-                    format="audio/mp3",
+                    format=audio_mime_type(filepath),
                     autoplay=(player.is_playing and not player.is_paused),
                 )
             except Exception as e:
                 st.audio(
                     filepath,
-                    format="audio/mp3",
+                    format=audio_mime_type(filepath),
                     autoplay=(player.is_playing and not player.is_paused),
                 )
 

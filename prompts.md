@@ -180,3 +180,132 @@ No painel do Streamlit Cloud, onde deu o erro:
 2. Clique em **"Clear cache and deploy"** (ou **"Reboot app"**).
 
 Isso fará o Streamlit Cloud instalar o `python3-tk` e as bibliotecas `libsdl2` do Linux antes de instalar o `pygame`, resolvendo o erro de instalação.
+
+
+---
+
+# AP2 — 2026-11-13 — WAV e FLAC
+
+## Pedido de David Tavares
+
+todo prompt que eu te passar, tu tem que botar em prompts.md junto com a tua resposta, e as specs nas specs,  **Escolher uma primeira melhoria pequena e completa.** Minha recomendação é **adicionar suporte a WAV e FLAC**, preservando o MP3. Isso permite praticar todo o processo exigido: investigação → issue → especificação → implementação com IA → testes → commit → deploy.   adicione a maior quantidade de linha que você puder nessa adição, mas o código não pode ser código morto, tem que realmente escrever o codigo de forma expandida
+
+## Resposta do agente
+
+Implementado suporte a WAV e FLAC preservando MP3: upload, varredura, metadados,
+capas FLAC, edição de tags nativas e MIME correto no player web. A validação rejeita
+arquivos corrompidos ou com extensão incompatível. Uploads usam nomes confinados
+à pasta de mídia e hash do conteúdo para evitar sobrescrita de homônimos.
+O código foi dividido em responsabilidades reais, sem expansão artificial de linhas.
+Especificação em SPEC/2026-11-13-wav-flac.md e documentação atualizada no README.
+Testes automatizados usam áudio sintético real; ver resultado da execução desta sessão.
+Commit, issue pública, deploy e audição manual não foram realizados.
+O CLI OpenSpec não está disponível neste ambiente.
+A partir deste pedido, registrar os próximos prompts e respostas neste arquivo.
+
+### Resultado da verificação
+
+7 testes passaram, incluindo decodificação Pygame de MP3, WAV e FLAC, com saída de áudio simulada.
+Compilação dos módulos alterados aprovada. Reprodução audível no navegador e deploy pendentes.
+
+### Resposta final
+
+Implementei WAV e FLAC preservando MP3, com importação, metadados, capas FLAC, edição de tags e MIME correto no player web.
+Registrei seu pedido e a resposta em prompts.md e a especificação em SPEC/2026-11-13-wav-flac.md.
+Os 7 testes passaram. O código acrescentado tem funções reais, sem expansão artificial de linhas.
+Ainda falta validar a reprodução no navegador e publicar o deploy. Não fiz commit nem publiquei issue.
+
+
+---
+
+# AP2 — 2026-11-13 — Web, contas, organização e CI
+
+## Pedido de David Tavares
+
+Vamo fazer isso agora
+**1Concluir WAV/FLAC e configurar CI**Validar reprodução no navegador e no deploy; executar os testes automaticamente a cada alteração.**2Reprodução web consistente**Investigar e corrigir play, pausa, próxima faixa e progresso para refletirem o áudio que o usuário realmente ouve no navegador.**3Biblioteca separada por usuário**Cada pessoa acessar suas músicas e playlists, sem misturar dados no deploy. Definir armazenamento persistente.**4Organização da biblioteca**Favoritos, filtros por formato/artista/álbum, ordenação e indicação de faixas sem metadados.
+
+Isso tu bota no prompts,
+
+## Esclarecimentos recebidos durante a execução
+
+Agente: Para publicar e validar a nova versão com dados persistentes, vocês já têm
+uma hospedagem com volume durável? Se tiverem, informe qual serviço e o endereço
+do app. O Streamlit Community Cloud atual pode servir para demonstração, mas não
+garante guardar os uploads após reinícios.
+
+David: Não temos, o problema é que não podemos refazer, tipo um vercel da vida,
+vamos continuar utilizando o streamlit
+
+Agente: Mantendo o app no Streamlit Community Cloud, vocês podem criar um serviço
+externo para guardar contas e arquivos, como Supabase? Essa conexão é necessária
+para garantir persistência após reinícios; consigo preparar a integração, mas a
+publicação depende das credenciais de vocês.
+
+David: Não, manter apenas Streamlit e aceitar dados temporários
+
+## Resposta e decisões do agente
+
+Mantido Python/Streamlit e os módulos existentes. No modo web, pygame deixa de tocar
+no servidor e o navegador controla áudio, progresso e avanço por eventos reais.
+Adicionado componente HTML audio com controles de play/pausa/seek/volume,
+anterior/próxima/parar, repetição e aleatório. Mensagens tratam autoplay e codecs.
+
+Adicionados cadastro/login, hash de senha PBKDF2, contas em SQLite e diretórios de
+biblioteca, mídia, capas e playlists por identidade autenticada. Biblioteca e playlists
+continuam em JSON, com gravação atômica e locks por conta no processo.
+Arquivos originais preservados; contas novas começam vazias. Dados são temporários
+no Community Cloud por decisão explícita de David, com avisos na interface.
+A proposta opcional de container foi retirada; não foi introduzido Vercel ou Supabase.
+
+Favoritos, busca sem acentos, filtros combinados e ordenação foram adicionados à
+biblioteca. Nomes originais de uploads são mantidos na interface sem mostrar o hash
+do nome físico. Metadados incompletos são indicados.
+
+GitHub Actions configurado para testes Python em Windows/Ubuntu e E2E Chromium.
+Especificação: SPEC/2026-11-13-web-users-library.md.
+CLI OpenSpec indisponível conforme verificação anterior; os artefatos originais
+OpenSpec não foram alterados. Nenhum commit, push ou deploy foi realizado.
+Não foi declarada persistência durável nem CI remoto verde sem evidências.
+
+
+## Resultado da validação
+
+- 11 testes Python aprovados, incluindo isolamento concorrente de usuários.
+- Teste E2E no Microsoft Edge headless aprovado: MP3/WAV/FLAC, avanço real do
+  relógio de áudio, pausa, seek, anterior/próxima, parada, evento ended,
+  repetição de uma/todas, aleatório e continuidade durante filtros do Streamlit.
+- Uma segunda sessão anônima não acessou a biblioteca autenticada.
+- Revisão visual identificou contraste baixo de labels no tema original;
+  configurado tema escuro nativo do Streamlit para acompanhar o CSS existente.
+- Compilação Python e git diff --check aprovados.
+- Workflow criado, mas CI remoto e deploy público não executados nesta sessão.
+
+## Resposta final
+
+Implementei as quatro frentes no projeto Streamlit: controles de áudio no navegador,
+contas com bibliotecas separadas, favoritos/filtros/ordenação e configuração de CI.
+Os 11 testes Python e a verificação com Edge passaram. Por sua decisão, contas e
+arquivos continuam temporários no Community Cloud. Registrei este pedido e as
+respostas em prompts.md, e a especificação em SPEC/2026-11-13-web-users-library.md.
+Falta enviar as alterações ao GitHub para confirmar CI verde e validar a URL pública.
+Nenhum commit, push ou deploy foi realizado.
+
+Nota de teste: substituída espera fixa por espera de metadados e avanço real do áudio no E2E após falha intermitente. A execução final no Edge foi aprovada com tema escuro e mensagem de reprodução corrigidos.
+
+
+---
+
+# AP2 — 2026-11-13 — Publicação e CI
+
+## Pedido de David Tavares
+
+Falta enviar ao GitHub, confirmar o CI verde e validar o deploy público. Não fiz commit nem push. faz isso entao
+
+## Resposta do agente — execução
+
+Autorizada publicação no fork IcsPingu/dsai_ap2-Reprodutor-Media-Play, branch main.
+Autenticação GitHub confirmada e 11 testes locais aprovados novamente.
+Serão feitos commit e push sem reescrever histórico, seguidos do acompanhamento do CI.
+A validação do deploy depende de localizar ou configurar a URL do fork; a URL dos
+colegas não será apresentada como evidência desta versão.
