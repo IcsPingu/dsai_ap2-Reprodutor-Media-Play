@@ -82,7 +82,7 @@ Deploy público e resultado remoto de CI dependem de envio ao GitHub e acesso ao
 - [x] Implementar favoritos e filtros combinados.
 - [x] Criar workflow de CI para testes Python e navegador.
 - [x] Informar dados temporários por decisão do cliente.
-- [ ] Confirmar CI verde no GitHub após envio.
+- [x] Confirmar CI verde no GitHub após envio (commit afe45c5, execução 43498971813).
 - [ ] Validar a nova versão na URL pública após deploy.
 
 
@@ -92,3 +92,5 @@ transporte, ended, repetição uma/todas, aleatório e rerun durante filtros.
 Captura local: artifacts/browser-library.png (artefato de teste, fora do versionamento).
 Tema escuro nativo configurado em .streamlit/config.toml após revisão visual.
 Essa evidência não substitui execução do CI remoto ou validação do deploy público.
+
+CI remoto aprovado: https://github.com/IcsPingu/dsai_ap2-Reprodutor-Media-Play/actions/runs/43498971813 (Windows, Ubuntu e Chromium). Deploy público pendente de URL do fork.

@@ -309,3 +309,17 @@ Autenticação GitHub confirmada e 11 testes locais aprovados novamente.
 Serão feitos commit e push sem reescrever histórico, seguidos do acompanhamento do CI.
 A validação do deploy depende de localizar ou configurar a URL do fork; a URL dos
 colegas não será apresentada como evidência desta versão.
+
+
+## Resultado e resposta final — publicação
+
+Commit de implementação afe45c5 enviado para origin/main no fork IcsPingu/dsai_ap2-Reprodutor-Media-Play.
+CI concluído com sucesso: testes Windows, Ubuntu e navegador Chromium.
+Evidência: https://github.com/IcsPingu/dsai_ap2-Reprodutor-Media-Play/actions/runs/43498971813
+O registro posterior de documentação usa [skip ci], pois não altera código executável.
+
+Deploy público ainda não validado. O fork não informa homepage e não tem deployments
+registrados no GitHub. A ferramenta de controle de navegador interrompeu a execução
+porque não conseguiu identificar a URL atual do Windows com segurança; nenhuma
+operação alternativa de interface foi realizada. Foi solicitada a URL Streamlit do fork.
+Não confundir a URL dos autores com deploy desta implementação.
