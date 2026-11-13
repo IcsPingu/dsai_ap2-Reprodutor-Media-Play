@@ -323,3 +323,42 @@ registrados no GitHub. A ferramenta de controle de navegador interrompeu a execu
 porque não conseguiu identificar a URL atual do Windows com segurança; nenhuma
 operação alternativa de interface foi realizada. Foi solicitada a URL Streamlit do fork.
 Não confundir a URL dos autores com deploy desta implementação.
+
+
+## Esclarecimento sobre deploy
+
+David: a gente só fez o fork, eu acho
+
+Resposta do agente: O fork e o CI estão prontos, mas isso não cria automaticamente
+um app Streamlit. Acessar https://share.streamlit.io/, entrar com GitHub e criar um
+app usando o repositório IcsPingu/dsai_ap2-Reprodutor-Media-Play, branch main e arquivo
+app.py. Selecionar Python 3.13 nas configurações avançadas e publicar. Enviar a URL
+.streamlit.app gerada para validar a nova versão. Não foi criado deploy nesta etapa.
+
+
+## Permissão para criar deploy
+
+David: ta dando que nao tem permissao, sendo que eu sou colaborador do fork
+
+Mensagem enviada por David: You do not have admin permissions on GitHub for this repository.
+Branch / Main file path / This file does not exist.
+
+Resposta do agente: Consulta ao GitHub confirmou push=true e admin=false para a
+conta autenticada no fork IcsPingu/dsai_ap2-Reprodutor-Media-Play. O Streamlit exige
+admin para criar deploy. O dono da conta IcsPingu deve fazer a publicação pelo seu
+GitHub, selecionando branch main e arquivo app.py. Ser colaborador com escrita
+permite enviar código, mas não satisfaz esse requisito de administração.
+O erro de arquivo pode estar associado à falta de acesso; confirmar os campos
+main (minúsculo) e app.py depois de entrar com a conta proprietária.
+Fonte: https://docs.streamlit.io/deploy/streamlit-community-cloud/get-started/connect-your-github-account
+Nenhuma permissão foi alterada.
+
+
+## Envio dos registros pendentes
+
+David: faz o push ai, que depois ele cria o streamlit
+
+Resposta do agente: Enviar os registros pendentes de prompts.md para origin/main
+no fork IcsPingu/dsai_ap2-Reprodutor-Media-Play. O código da aplicação já foi enviado
+e o CI da implementação foi aprovado. Este commit altera somente documentação,
+com [skip ci]. A criação do app Streamlit ficará com o proprietário do fork.
