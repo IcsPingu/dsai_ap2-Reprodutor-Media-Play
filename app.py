@@ -280,7 +280,7 @@ elif menu == "📚 Biblioteca de Mídias":
                 st.caption(track.get('duration_str', '00:00'))
 
             with c_pl:
-                playlists = st.session_state.playlists
+                playlists = [p for p in st.session_state.playlists if p.get("type") != "smart"]
                 if playlists:
                     pl_dict = {p["id"]: p for p in playlists}
                     selected_pl_id = st.selectbox(
@@ -327,7 +327,10 @@ elif menu == "📚 Biblioteca de Mídias":
 # -----------------------------------------------------------------------------
 elif menu == "🎵 Playlists":
     st.markdown("<div class='wmp-card'>", unsafe_allow_html=True)
-    st.subheader("🎵 Gerenciador de Playlists")
+    from ui.smart_playlists import render_smart_playlists
+    render_smart_playlists(player)
+    st.divider()
+    st.subheader("🎵 Playlists manuais")
 
     # Criar nova playlist com st.form (atômico e confiável no Streamlit Cloud)
     with st.form("create_playlist_form", clear_on_submit=True):
@@ -350,7 +353,7 @@ elif menu == "🎵 Playlists":
 
     st.divider()
 
-    playlists = st.session_state.playlists
+    playlists = [p for p in st.session_state.playlists if p.get("type") != "smart"]
     if not playlists:
         st.info("Nenhuma playlist cadastrada. Crie uma acima para organizar suas faixas.")
     else:

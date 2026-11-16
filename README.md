@@ -170,3 +170,19 @@ push/PR. O workflow precisa ser enviado ao GitHub para aparecer em Actions.
 Não reutilize a URL dos autores como evidência de deploy das alterações do fork.
 A nova versão ainda precisa ser validada na URL pública. Não há dependência de Vercel.
 Especificação: [Web, contas, biblioteca e CI](SPEC/2026-11-13-web-users-library.md).
+
+
+## Playlists inteligentes
+
+Na aba **Playlists**, abra **Criar playlist inteligente**, informe um nome e monte
+as regras. Por exemplo: Favorita = Sim + Formato = FLAC, combinando **Todas (E)**.
+Também é possível combinar artistas/gêneros por **Qualquer uma (OU)** e impor limites
+de duração, ordenação e quantidade. Use **Pré-visualizar seleção** antes de salvar.
+
+As regras ficam salvas na conta. Os resultados são recalculados a partir da biblioteca
+atual; importar músicas ou mudar favoritas/metadados pode alterar a seleção seguinte.
+Use **Reproduzir seleção inteligente** para iniciar a fila. A fila em execução não é
+alterada automaticamente. Para modificar integrantes, edite as regras; playlists manuais
+continuam com adição/remoção individual na seção separada da mesma aba.
+
+Especificação: [Playlists inteligentes](SPEC/2026-11-16-smart-playlists.md).

@@ -362,3 +362,57 @@ Resposta do agente: Enviar os registros pendentes de prompts.md para origin/main
 no fork IcsPingu/dsai_ap2-Reprodutor-Media-Play. O código da aplicação já foi enviado
 e o CI da implementação foi aprovado. Este commit altera somente documentação,
 com [skip ci]. A criação do app Streamlit ficará com o proprietário do fork.
+
+
+---
+
+# AP2 — 2026-11-16 — Playlists inteligentes
+
+## Pedido de David Tavares
+
+adicione ao prompts.md
+implemente playlists inteligentes
+
+## Resposta do agente
+
+Implementadas playlists inteligentes na aba Playlists, mantendo as playlists manuais.
+O usuário pode criar, pré-visualizar, editar, excluir e reproduzir uma seleção definida
+por regras. Campos: título, artista, álbum, gênero, formato, duração, favorita e metadados
+incompletos. Combinações E/OU, ordenação e limite de faixas estão disponíveis.
+Textos ignoram acentos e caixa. Definições são validadas antes de salvar.
+
+As regras são salvas no playlists.json da conta e avaliadas contra a biblioteca atual.
+Novas músicas ou mudanças de metadados/favoritas aparecem na seleção seguinte.
+A fila em execução não é modificada automaticamente. Operações manuais de integrantes
+são bloqueadas para playlists inteligentes; continuam disponíveis nas playlists manuais.
+Dados seguem temporários no Community Cloud conforme decisão anterior.
+
+Especificação: SPEC/2026-11-16-smart-playlists.md.
+Validação: 32 testes aprovados, incluindo regras, persistência, isolamento entre contas,
+CRUD via Streamlit AppTest e integração na aba Playlists do app principal.
+Os quatro novos arquivos Python somam 453 linhas com tokens de código, excluindo
+linhas vazias, comentários e docstrings, incluindo 216 linhas de testes. Essa contagem
+é local via tokenize/AST e não foi apresentada como execução de cloc.
+Não inclui documentação nem as alterações em app.py/core/playlist.py.
+Nenhum commit, push ou deploy foi realizado nesta implementação.
+
+## Resposta final
+
+Playlists inteligentes implementadas em Playlists → Criar playlist inteligente.
+Incluem regras E/OU, prévia, edição, exclusão, ordenação, limite e reprodução.
+32 testes aprovados. Os quatro novos arquivos têm 453 linhas de código e testes,
+sem contar comentários, docstrings ou linhas vazias. Pedido e resposta registrados
+neste arquivo e especificação em SPEC/2026-11-16-smart-playlists.md.
+Alterações locais; ainda sem commit ou push.
+
+
+## Commit e push das playlists inteligentes
+
+David: faz o commit atomico e o push
+
+Resposta do agente: Organizar a mudança em dois commits atômicos: motor de regras,
+persistência, especificação e testes de domínio; depois interface Streamlit,
+integração no app, testes de interface e documentação. Ambos usam Agent: Codex e
+Spec: SPEC/2026-11-16-smart-playlists.md. Enviar os commits para origin/main sem
+reescrever o histórico. A validação anterior aprovou 32 testes; o CI remoto será
+acionado pelo push. Esta operação não cria nem valida um deploy Streamlit público.
