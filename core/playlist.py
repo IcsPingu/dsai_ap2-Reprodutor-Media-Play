@@ -6,6 +6,7 @@ import uuid
 import datetime
 from typing import List, Dict, Any, Optional
 from core.library import STORAGE_DIR
+from core.smart_playlists import validate_definition, evaluate
 
 PLAYLISTS_JSON = os.path.join(STORAGE_DIR, "playlists.json")
 
@@ -89,6 +90,8 @@ def add_track_to_playlist(playlist_id: str, track_id: str) -> bool:
     updated = False
     for p in playlists:
         if p["id"] == playlist_id:
+            if p.get("type") == "smart":
+                raise ValueError("Edite as regras para alterar uma playlist inteligente.")
             if track_id not in p["track_ids"]:
                 p["track_ids"].append(track_id)
                 updated = True
@@ -105,6 +108,8 @@ def remove_track_from_playlist(playlist_id: str, track_id: str) -> bool:
     updated = False
     for p in playlists:
         if p["id"] == playlist_id:
+            if p.get("type") == "smart":
+                raise ValueError("Edite as regras para alterar uma playlist inteligente.")
             if track_id in p["track_ids"]:
                 p["track_ids"].remove(track_id)
                 updated = True
@@ -121,6 +126,8 @@ def reorder_playlist_tracks(playlist_id: str, new_track_ids: List[str]) -> bool:
     updated = False
     for p in playlists:
         if p["id"] == playlist_id:
+            if p.get("type") == "smart":
+                raise ValueError("Edite as regras para alterar uma playlist inteligente.")
             p["track_ids"] = new_track_ids
             updated = True
             break
@@ -137,3 +144,46 @@ def get_playlist_by_id(playlist_id: str) -> Optional[Dict[str, Any]]:
         if p["id"] == playlist_id:
             return p
     return None
+
+
+@serialized
+def create_smart_playlist(name, definition):
+    name = name.strip()
+    if not name or len(name) > 100:
+        raise ValueError("O nome deve ter de 1 a 100 caracteres.")
+    definition = validate_definition(definition)
+    playlists = load_playlists()
+    playlist = {
+        "id": str(uuid.uuid4()),
+        "name": name,
+        "type": "smart",
+        "track_ids": [],
+        "definition": definition,
+        "created_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+    }
+    playlists.append(playlist)
+    save_playlists(playlists)
+    return playlist
+
+
+@serialized
+def update_smart_playlist(playlist_id, name, definition):
+    name = name.strip()
+    if not name or len(name) > 100:
+        raise ValueError("O nome deve ter de 1 a 100 caracteres.")
+    definition = validate_definition(definition)
+    playlists = load_playlists()
+    for playlist in playlists:
+        if playlist["id"] == playlist_id and playlist.get("type") == "smart":
+            playlist["name"] = name
+            playlist["definition"] = definition
+            save_playlists(playlists)
+            return True
+    return False
+
+
+def resolve_playlist_tracks(playlist, library):
+    if playlist.get("type") == "smart":
+        return evaluate(playlist["definition"], library)
+    lookup = {track["id"]: track for track in library}
+    return [lookup[identity] for identity in playlist.get("track_ids", []) if identity in lookup]
