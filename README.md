@@ -4,6 +4,87 @@ Aplicação de reprodução e gerenciamento de músicas desenvolvida em Python c
 
 O sistema permite importar músicas, organizar uma biblioteca, criar playlists, visualizar capas de álbuns e controlar a reprodução de áudio.
 
+## Links de plataformas musicais
+
+A biblioteca também pode guardar links HTTPS de músicas, com título informado
+manualmente (artista e álbum são opcionais). O app reconhece Spotify, YouTube,
+YouTube Music, Apple Music, Deezer, SoundCloud, Tidal e Amazon Music pelos hosts
+listados em `core/sources.py`. Por exemplo, `https://open.spotify.com/track/123`
+é Spotify e `https://music.youtube.com/watch?v=123` é YouTube Music.
+Outros hosts HTTPS válidos aparecem como **Link externo**, por exemplo
+`https://example.org/music/123`. Não há consulta de disponibilidade ou metadados,
+login, download nem streaming integrado desses serviços.
+
+São recusados links sem HTTPS, com credenciais, espaços internos, controles ou
+hostname inválido. A validação não garante que um site seja seguro: confira o
+hostname exibido antes de abrir. Hosts parecidos, como
+`open.spotify.com.example.org`, não recebem a identificação Spotify.
+
+URLs equivalentes não criam duplicatas: espaços externos, caixa do hostname,
+porta 443 e fragmento são ignorados. Caminho e query são preservados; links
+diferentes para a mesma música podem continuar sendo registros distintos.
+
+### Compatibilidade e backup
+
+Antes de usar esta versão, faça backup do diretório de dados das contas
+(`storage/private` por padrão, ou `MEDIA_PLAY_DATA`). Preserve também os JSONs
+legados `storage/library.json` e `storage/playlists.json`, se existirem.
+Faixas antigas sem origem são tratadas como locais;
+seus IDs e referências de playlists não mudam. O carregamento não reescreve
+os arquivos: os campos adicionais são persistidos no próximo salvamento normal.
+Importações locais preservam os links já cadastrados. Metadados de links são
+editados apenas no JSON; nenhum arquivo de áudio é acessado para escrever tags.
+
+Para voltar à versão anterior, restaure **o código e o backup de dados juntos**.
+A versão antiga não entende registros externos. Não há migração destrutiva nem
+remoção automática dos links para permitir downgrade. Contas autenticadas têm
+biblioteca, links, capas e playlists separados. O mesmo link pode ter metadados
+diferentes em contas diferentes. As escritas usam os locks e JSON atômico do
+projeto; no hosting, a persistência ainda depende do disco disponível.
+
+### Reprodução
+
+Biblioteca e playlists podem misturar origens, mas **Reproduzir Áudios Locais**
+monta uma fila apenas com MP3, WAV e FLAC locais e informa quantos links foram excluídos.
+Os links são abertos manualmente no serviço, nunca automaticamente ao avançar
+a fila. Uma coleção só de links não interrompe a reprodução local atual.
+
+O modo web usa o componente de áudio do navegador implementado pelo colega:
+play, pausa, seek e avanço usam eventos reais do elemento HTML5, sem tocar áudio
+via Pygame no servidor. O modo local Pygame permanece disponível no código.
+Links externos nunca são enviados ao componente de áudio. Isso não permite
+streaming protegido nem garante persistência dos arquivos no Streamlit Cloud.
+
+### Exemplo: uma playlist com três origens
+
+1. Entre ou crie uma conta. Em **Importar Áudios → Link de Plataforma**, adicione
+   `https://open.spotify.com/track/123` com um título.
+2. Adicione `https://example.org/music/456` como link genérico.
+3. Na aba de arquivos, importe um MP3, WAV ou FLAC seu.
+4. Crie uma playlist em **Playlists** e use **+ Playlist** para os três itens
+   na biblioteca. Eles permanecem juntos após recarregar.
+5. Use **Abrir no serviço** para cada link ou **Reproduzir Áudios Locais da Playlist**
+   para o arquivo local. Remover um item da playlist mantém a biblioteca.
+
+Esses URLs ilustram o formato; não garantem músicas disponíveis nos destinos.
+O fluxo foi verificado com MP3 silencioso e serviços interceptados, sem acesso
+à biblioteca real. Comandos dos testes e limitações estão em `tests/README.md`.
+
+### Origem e plataformas nas playlists inteligentes
+
+Use os filtros **Origem** e **Plataforma** da biblioteca junto aos filtros de
+favoritas, formato, artista e álbum. Nas playlists inteligentes, os novos campos
+**Origem** e **Plataforma** aceitam comparações igual/diferente; por exemplo,
+Origem = Link externo e Plataforma = Spotify.
+
+Novos links compatíveis aparecem na próxima consulta, sem alterar a fila já
+tocando. A seleção mostra ações para abrir os links. Reprodução inteligente
+também exclui links com aviso; uma seleção só externa não interrompe o áudio.
+Links não têm formato de áudio nem duração conhecida: não correspondem a
+regras numéricas de duração. Plataforma é derivada da URL validada, não de um
+rótulo salvo arbitrariamente. Integração documentada em
+`SPEC/2026-11-16-platform-links-integration.md`.
+
 ## 🔗 URL
 
 Site: https://media-play-desktop-fxudwyu8pcp2zsjafpha6n.streamlit.app/

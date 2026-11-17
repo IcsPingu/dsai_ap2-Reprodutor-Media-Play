@@ -1,5 +1,6 @@
 
 # Python local test artifacts
+.venv/
 __pycache__/
 *.py[cod]
 

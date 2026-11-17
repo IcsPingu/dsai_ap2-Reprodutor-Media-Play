@@ -7,11 +7,15 @@ from core.playlist import (
     load_playlists, resolve_playlist_tracks,
 )
 from core.smart_playlists import evaluate
+from core.sources import is_local_track, track_platform, PLATFORMS, SOURCE_LABELS
+from core.player import start_local_collection
+from ui.components import render_external_link
 
 FIELDS = {
     "Título": "title", "Artista": "artist", "Álbum": "album",
     "Gênero": "genre", "Formato": "format", "Duração": "duration",
     "Favorita": "favorite", "Metadados incompletos": "missing_metadata",
+    "Origem": "source_type", "Plataforma": "platform",
 }
 SORTS = {"Título": "title", "Artista": "artist", "Álbum": "album", "Duração": "duration", "Formato": "format"}
 
@@ -39,6 +43,14 @@ def rule_editor(prefix, index, initial):
         operators = {"No mínimo": "gte", "No máximo": "lte"}
         default = float(original.get("value", 300))
         value = st.number_input("Duração em segundos", min_value=0.0, value=default, step=1.0, key=f"{key}_value")
+    elif field in ("source_type", "platform"):
+        operators = {"É igual a": "equals", "É diferente de": "not_equals"}
+        mapping = SOURCE_LABELS if field == "source_type" else {value: value for value in PLATFORMS}
+        labels = list(mapping)
+        default = selected_label(mapping, original.get("value"))
+        label = st.selectbox("Origem da regra" if field == "source_type" else "Plataforma da regra",
+                             labels, index=labels.index(default), key=f"{key}_value")
+        value = mapping[label]
     elif field == "format":
         operators = {"É igual a": "equals", "É diferente de": "not_equals"}
         formats = ["mp3", "wav", "flac"]
@@ -78,13 +90,22 @@ def show_tracks(tracks):
         st.info("Nenhuma faixa corresponde. Importe músicas ou ajuste as regras.")
         return
     st.dataframe(
-        [{"Título": t.get("title", ""), "Artista": t.get("artist", ""), "Álbum": t.get("album", ""), "Duração": t.get("duration_str", "")} for t in tracks],
+        [{"Título": t.get("title", ""), "Artista": t.get("artist", ""), "Álbum": t.get("album", ""), "Duração": t.get("duration_str", ""), "Plataforma": track_platform(t)} for t in tracks],
         hide_index=True, use_container_width=True,
     )
+    links = [track for track in tracks if not is_local_track(track)]
+    if links:
+        with st.expander("Abrir links da seleção"):
+            for track in links:
+                st.text(f"{track.get('title', '')} · {track_platform(track)}")
+                render_external_link(track)
 
 
 def render_smart_playlists(player):
     st.subheader("Playlists inteligentes")
+    feedback = st.session_state.pop("smart_playback_feedback", None)
+    if feedback:
+        st.info(feedback)
     st.caption("Salve regras para selecionar músicas automaticamente. Novas faixas compatíveis entram na próxima consulta; a fila já tocando permanece como foi iniciada.")
     library = load_library()
     with st.expander("Criar playlist inteligente"):
@@ -116,9 +137,18 @@ def render_smart_playlists(player):
         tracks = []
     show_tracks(tracks)
     if st.button("Reproduzir seleção inteligente", disabled=not tracks):
-        player.set_queue(tracks)
-        player.play(tracks[0])
-        st.rerun()
+        if not any(is_local_track(track) for track in tracks):
+            st.warning("Não há faixas locais nesta seleção. Abra os links nos serviços.")
+        else:
+            started, skipped = start_local_collection(player, tracks)
+            if started:
+                if skipped:
+                    st.session_state.smart_playback_feedback = (
+                        f"{skipped} link(s) excluído(s) da fila local. Abra-os nos serviços."
+                    )
+                st.rerun()
+            else:
+                st.warning("Não foi possível reproduzir o áudio. Confira o arquivo local.")
     with st.expander("Editar regras e nome"):
         name = st.text_input("Nome", value=playlist["name"], max_chars=100, key=f"smart_edit_{identity}_name")
         definition = definition_editor(f"smart_edit_{identity}", playlist["definition"])

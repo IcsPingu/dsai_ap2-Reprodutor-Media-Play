@@ -31,3 +31,4 @@ jobs:
       - run: python -m pip install -r requirements-dev.txt playwright
       - run: python -m playwright install --with-deps chromium
       - run: python tests/browser_check.py
+      - run: python tests/browser_flow.py

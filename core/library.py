@@ -7,6 +7,7 @@ from io import BytesIO
 from typing import List, Dict, Any, Optional
 from PIL import Image
 from core.audio_formats import supported_audio, audio_mime_type, read_audio, write_audio_tags
+from core.sources import is_local_track, normalize_external_url, platform_for_url
 
 STORAGE_DIR = "storage"
 COVERS_DIR = os.path.join(STORAGE_DIR, "covers")
@@ -80,6 +81,9 @@ def parse_audio_metadata(filepath: str) -> Dict[str, Any]:
         "format": os.path.splitext(filepath)[1][1:].lower(),
         "mime_type": audio_mime_type(filepath),
         "id": track_id,
+        "source_type": "local",
+        "platform": "Local",
+        "external_url": "",
         "filepath": filepath,
         "filename": filename,
         "title": title_default,
@@ -176,7 +180,11 @@ def load_library() -> List[Dict[str, Any]]:
         with open(scoped_path(LIBRARY_JSON, "library.json"), "r", encoding="utf-8") as f:
             items = json.load(f)
             for item in items:
-                item["filepath"] = resolve_filepath(item.get("filepath", ""))
+                if is_local_track(item):
+                    item.setdefault("source_type", "local")
+                    item.setdefault("platform", "Local")
+                    item.setdefault("external_url", "")
+                    item["filepath"] = resolve_filepath(item.get("filepath", ""))
                 item["cover_path"] = resolve_coverpath(item.get("cover_path", ""))
             return items
     except Exception as e:
@@ -191,6 +199,46 @@ def save_library(library: List[Dict[str, Any]]):
     atomic_json(scoped_path(LIBRARY_JSON, "library.json"), library)
 
 
+class DuplicateTrackError(ValueError):
+    """Link já cadastrado; os dados anteriores não são modificados."""
+
+
+@serialized
+def add_external_track(url: str, title: str, artist: str = "", album: str = ""):
+    """Cadastra um marcador musical manual e devolve a biblioteca atualizada."""
+    normalized = normalize_external_url(url)
+    if not title.strip():
+        raise ValueError("Informe o título da música.")
+    library = load_library()
+    for track in library:
+        if not is_local_track(track):
+            try:
+                existing_url = normalize_external_url(track.get("external_url", ""))
+            except ValueError:
+                continue
+            if existing_url == normalized:
+                raise DuplicateTrackError("Este link já está na biblioteca.")
+    library.append({
+        "id": "ext_" + hashlib.sha256(normalized.encode("utf-8")).hexdigest(),
+        "source_type": "external",
+        "platform": platform_for_url(normalized),
+        "external_url": normalized,
+        "filepath": "",
+        "filename": "",
+        "title": title.strip(),
+        "artist": artist.strip() or "Artista Desconhecido",
+        "album": album.strip() or "Album Desconhecido",
+        "year": "N/A",
+        "genre": "Genero Desconhecido",
+        "duration": 0,
+        "duration_str": "—",
+        "cover_path": scoped_path(DEFAULT_COVER, "covers/default_cover.png"),
+        "favorite": False,
+    })
+    save_library(library)
+    return library
+
+
 @serialized
 def scan_directory(folder_path: str) -> List[Dict[str, Any]]:
     """
@@ -202,20 +250,22 @@ def scan_directory(folder_path: str) -> List[Dict[str, Any]]:
     if not os.path.isdir(folder_path):
         return load_library()
 
-    current_library = {t["filepath"]: t for t in load_library()}
+    current_library = load_library()
+    known_paths = {t.get("filepath") for t in current_library if is_local_track(t)}
 
     for root, _, files in os.walk(folder_path):
         for file in files:
             if supported_audio(file):
                 full_path = os.path.abspath(os.path.join(root, file))
-                if full_path not in current_library:
+                if full_path not in known_paths:
                     try:
                         metadata = parse_audio_metadata(full_path)
                     except ValueError as error:
                         raise ValueError(f"{file}: {error}") from error
-                    current_library[full_path] = metadata
+                    current_library.append(metadata)
+                    known_paths.add(full_path)
 
-    updated_library_list = list(current_library.values())
+    updated_library_list = current_library
     save_library(updated_library_list)
     return updated_library_list
 
@@ -223,17 +273,19 @@ def scan_directory(folder_path: str) -> List[Dict[str, Any]]:
 @serialized
 def import_files(file_paths: List[str]) -> List[Dict[str, Any]]:
     """Importa uma lista de caminhos de arquivos MP3, WAV e FLAC fisicos."""
-    current_library = {t["filepath"]: t for t in load_library()}
+    current_library = load_library()
+    known_paths = {t.get("filepath") for t in current_library if is_local_track(t)}
     for filepath in file_paths:
         if supported_audio(filepath) and os.path.isfile(filepath):
             if not accessible_path(filepath):
                 raise ValueError("Arquivo fora da biblioteca do usuário.")
             abs_path = os.path.abspath(filepath)
-            if abs_path not in current_library:
+            if abs_path not in known_paths:
                 metadata = parse_audio_metadata(abs_path)
-                current_library[abs_path] = metadata
+                current_library.append(metadata)
+                known_paths.add(abs_path)
 
-    updated_list = list(current_library.values())
+    updated_list = current_library
     save_library(updated_list)
     return updated_list
 
@@ -324,10 +376,15 @@ def update_track_metadata(track_id: str, new_data: Dict[str, str]) -> bool:
     updated = False
     for track in library:
         if track["id"] == track_id:
+            if not is_local_track(track) and "title" in new_data and not new_data["title"].strip():
+                raise ValueError("Informe o título da música.")
             for field in ["title", "artist", "album", "year", "genre"]:
                 if field in new_data:
                     track[field] = new_data[field]
             updated = True
+
+            if not is_local_track(track):
+                break
 
             try:
                 write_audio_tags(track["filepath"], new_data)

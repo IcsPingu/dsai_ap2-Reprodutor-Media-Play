@@ -6,6 +6,7 @@ import streamlit as st
 import streamlit.components.v1 as components
 from core.audio_formats import audio_mime_type
 from core.library import resolve_filepath
+from core.sources import is_local_track
 
 _component = components.declare_component("media_play_browser", path=str(Path(__file__).parent / "browser_player"))
 
@@ -13,6 +14,8 @@ _component = components.declare_component("media_play_browser", path=str(Path(__
 def render_browser_player(player):
     queue = []
     for track in player.queue:
+        if not is_local_track(track):
+            continue
         path = resolve_filepath(track.get("filepath", ""))
         if not path or not Path(path).is_file():
             st.warning(f"Arquivo indisponível: {track.get('title', '')}")

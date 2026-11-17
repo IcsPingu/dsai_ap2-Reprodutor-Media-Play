@@ -1,12 +1,36 @@
-from html import escape
 from core.audio_formats import audio_mime_type
 import os
 import base64
+from html import escape
+from urllib.parse import urlsplit
 import streamlit as st
 from typing import Optional, Dict, Any, Callable
 
 
 from core.library import resolve_filepath, resolve_coverpath
+from core.sources import is_local_track, normalize_external_url, platform_for_url
+
+
+def render_track_origin(track):
+    if is_local_track(track):
+        st.caption("Local")
+        return
+    try:
+        url = normalize_external_url(track.get("external_url", ""))
+    except ValueError:
+        st.caption("Link externo inválido")
+        return
+    st.caption(f"{platform_for_url(url)} · {urlsplit(url).hostname}")
+
+
+def render_external_link(track):
+    """Revalidar inclusive dados persistidos; nunca abrir URLs pelo servidor."""
+    try:
+        url = normalize_external_url(track.get("external_url", ""))
+    except ValueError:
+        st.caption("Link inválido: abertura indisponível.")
+        return
+    st.link_button("Abrir no serviço", url, help="Abre no navegador; não reproduz no app.")
 
 
 def load_css(css_file: str):
@@ -161,7 +185,7 @@ def render_controls_bar(
     st.markdown("<div class='wmp-control-bar'>", unsafe_allow_html=True)
 
     # --- Player HTML5 de Áudio nativo do Streamlit para o navegador / Community Cloud ---
-    if current_track:
+    if current_track and is_local_track(current_track):
         filepath = resolve_filepath(current_track.get("filepath", ""))
         if filepath and os.path.exists(filepath):
             try:

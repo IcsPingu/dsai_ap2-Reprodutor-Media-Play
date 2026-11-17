@@ -38,6 +38,12 @@ def read_audio(source, filename=None):
     expected_class = AUDIO_TYPES[extension][0]
     try:
         audio = mutagen.File(source)
+        # Streams sem nome (upload) podem não pontuar MP3 MPEG-2.5 no detector.
+        # O parser do formato esperado ainda valida os frames, sem aceitar lixo.
+        if audio is None:
+            if hasattr(source, "seek"):
+                source.seek(0)
+            audio = expected_class(source)
     except (mutagen.MutagenError, OSError, ValueError, EOFError) as error:
         raise ValueError(f"Arquivo inválido ou ilegível: {name}") from error
     if not isinstance(audio, expected_class):

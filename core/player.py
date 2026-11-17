@@ -4,12 +4,33 @@ import time
 import threading
 import queue
 from typing import List, Dict, Any, Optional
+from core.sources import is_local_track, local_tracks
 
 try:
     import pygame
     PYGAME_AVAILABLE = True
 except ImportError:
     PYGAME_AVAILABLE = False
+
+
+def start_local_collection(player, tracks, selected_id=None):
+    """Inicia somente arquivos locais; retorna (iniciou, links excluídos).
+
+    Coleções externas e seleções inválidas não alteram a reprodução atual.
+    """
+    filtered = local_tracks(tracks)
+    skipped = len(tracks) - len(filtered)
+    if not filtered:
+        return False, skipped
+    selected = next(
+        (track for track in filtered if track["id"] == selected_id),
+        None,
+    ) if selected_id is not None else filtered[0]
+    if selected is None:
+        return False, skipped
+    index = next(idx for idx, track in enumerate(filtered) if track["id"] == selected["id"])
+    player.set_queue(filtered, start_index=index)
+    return player.play(selected), skipped
 
 
 class _PygameThread(threading.Thread):
@@ -138,14 +159,20 @@ class AudioPlayer:
     # ------------------------------------------------------------------
 
     def set_queue(self, tracks: List[Dict[str, Any]], start_index: int = 0):
-        self.original_queue = list(tracks)
-        self.queue = list(tracks)
+        selected = tracks[start_index] if 0 <= start_index < len(tracks) else None
+        filtered = local_tracks(tracks)
+        self.original_queue = list(filtered)
+        self.queue = list(filtered)
+        if not filtered:
+            self.current_index = -1
+            return
         if self.shuffle_mode:
             random.shuffle(self.queue)
             self.current_index = 0
         else:
-            self.current_index = (
-                start_index if 0 <= start_index < len(tracks) else 0
+            self.current_index = next(
+                (idx for idx, item in enumerate(filtered)
+                 if selected and item["id"] == selected["id"]), 0
             )
 
     # ------------------------------------------------------------------
@@ -155,6 +182,8 @@ class AudioPlayer:
     def play(self, track: Optional[Dict[str, Any]] = None, start_pos: float = 0.0) -> bool:
         from core.library import resolve_filepath
 
+        if track is not None and not is_local_track(track):
+            return False
         if track:
             filepath = resolve_filepath(track.get("filepath", ""))
             track["filepath"] = filepath
@@ -162,7 +191,7 @@ class AudioPlayer:
             for idx, item in enumerate(self.queue):
                 item_path = resolve_filepath(item.get("filepath", ""))
                 item["filepath"] = item_path
-                if item_path == filepath:
+                if item.get("id") == track.get("id"):
                     self.current_index = idx
                     found = True
                     break
@@ -171,7 +200,7 @@ class AudioPlayer:
                 self.current_index = 0
 
         target = self.get_current_track()
-        if not target:
+        if not target or not is_local_track(target):
             return False
 
         resolved_path = resolve_filepath(target.get("filepath", ""))

@@ -1,6 +1,7 @@
 import os
 import tempfile
 import unittest
+from pathlib import Path
 from unittest.mock import patch
 
 from streamlit.testing.v1 import AppTest
@@ -74,7 +75,7 @@ class SmartPlaylistUITests(unittest.TestCase):
         create_smart_playlist("Favoritas", {
             "rules": [{"field": "favorite", "operator": "equals", "value": True}],
         })
-        app = AppTest.from_file("app.py")
+        app = AppTest.from_file(str(Path(__file__).resolve().parents[1] / "app.py"))
         app.session_state["identity"] = "alice"
         app.run()
         navigation = next(widget for widget in app.radio if widget.label == "Navegação")

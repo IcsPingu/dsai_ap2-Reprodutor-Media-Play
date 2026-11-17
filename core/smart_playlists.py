@@ -2,6 +2,7 @@
 
 import math
 from core.library_filters import normalized, track_format, missing_metadata
+from core.sources import is_local_track, track_platform, PLATFORMS
 
 TEXT_FIELDS = ("title", "artist", "album", "genre")
 TEXT_OPERATORS = ("contains", "equals", "not_contains")
@@ -26,6 +27,12 @@ def validate_rule(rule):
             raise ValueError("Operador de formato inválido.")
         if value not in ("mp3", "wav", "flac"):
             raise ValueError("Selecione MP3, WAV ou FLAC.")
+    elif field in ("source_type", "platform"):
+        if operator not in ("equals", "not_equals"):
+            raise ValueError("Operador de origem inválido.")
+        choices = ("local", "external") if field == "source_type" else PLATFORMS
+        if value not in choices:
+            raise ValueError("Selecione uma origem ou plataforma válida.")
     elif field == "duration":
         if operator not in ("gte", "lte"):
             raise ValueError("Operador de duração inválido.")
@@ -71,6 +78,11 @@ def validate_definition(definition):
 
 def rule_matches(track, rule):
     field, operator, expected = rule["field"], rule["operator"], rule["value"]
+    if field in ("source_type", "platform"):
+        actual = ("local" if is_local_track(track) else "external") \
+            if field == "source_type" else track_platform(track)
+        equal = actual == expected
+        return equal if operator == "equals" else not equal
     if field in TEXT_FIELDS:
         actual = normalized(track.get(field) or "")
         expected = normalized(expected)
@@ -86,6 +98,8 @@ def rule_matches(track, rule):
         return bool(track.get("favorite", False)) == expected
     if field == "missing_metadata":
         return missing_metadata(track) == expected
+    if not is_local_track(track):
+        return False
     try:
         duration = float(track.get("duration", 0))
     except (TypeError, ValueError):
