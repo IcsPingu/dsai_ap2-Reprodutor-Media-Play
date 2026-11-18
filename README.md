@@ -186,3 +186,19 @@ alterada automaticamente. Para modificar integrantes, edite as regras; playlists
 continuam com adição/remoção individual na seção separada da mesma aba.
 
 Especificação: [Playlists inteligentes](SPEC/2026-11-16-smart-playlists.md).
+
+
+## Fila editável
+
+Na Biblioteca, abra **Adicionar à fila** e escolha **Tocar depois** ou **Adicionar ao
+final**. É possível enfileirar a mesma música mais de uma vez. Na aba **Tocando Agora**,
+use **Subir**, **Descer** e **Remover da fila** nas próximas faixas. **Limpar próximas**
+mantém a atual e o histórico. Essas ações não excluem músicas nem alteram playlists.
+
+A atual e as anteriores ficam protegidas. Uma edição mantém posição, pausa e volume;
+se a fila estiver vazia, adicionar seleciona a primeira faixa sem autoplay. Uma edição
+explícita desativa aleatório e preserva a ordem visível como nova base. O tempo restante
+é estimado, não inclui ciclos de repetição e usa zero para durações inválidas.
+A fila fica somente na sessão. Reproduzir uma playlist inteira substitui a fila.
+
+Especificação: [Fila editável](SPEC/2026-11-18-editable-queue.md).

@@ -162,6 +162,9 @@ with st.sidebar:
 # Renderiza o cabeçalho principal WMP
 render_header()
 
+# Keep the audio component at a stable position across navigation branches.
+transport_slot = st.container()
+
 # -----------------------------------------------------------------------------
 # TAB 1: TOCANDO AGORA
 # -----------------------------------------------------------------------------
@@ -195,27 +198,8 @@ if menu == "🎧 Tocando Agora":
 
     with col_right:
         st.markdown("<div class='wmp-card'>", unsafe_allow_html=True)
-        st.subheader("📋 Fila de Reprodução Atual")
-
-        if not player.queue:
-            st.info("A fila de reprodução está vazia. Adicione ou selecione faixas na Biblioteca.")
-        else:
-            for idx, item in enumerate(player.queue):
-                is_active = (idx == player.current_index)
-                bg_color = "rgba(0, 180, 255, 0.2)" if is_active else "transparent"
-                col_i1, col_i2, col_i3, col_i4 = st.columns([0.5, 4, 2, 1])
-
-                with col_i1:
-                    st.markdown(f"<p style='margin-top: 6px;'>{'▶' if is_active else str(idx+1)}</p>", unsafe_allow_html=True)
-                with col_i2:
-                    st.markdown(f"<p style='margin-top: 6px; font-weight: {'bold' if is_active else 'normal'}; color: {'#00e5ff' if is_active else '#ffffff'};'>{escape(str(item.get('title', '')))}</p>", unsafe_allow_html=True)
-                with col_i3:
-                    st.markdown(f"<p style='margin-top: 6px; color: #8ab4f8;'>{escape(str(item.get('artist', '')))}</p>", unsafe_allow_html=True)
-                with col_i4:
-                    if st.button("▶ Tocar", key=f"queue_play_{idx}"):
-                        player.current_index = idx
-                        player.play(item)
-                        st.rerun()
+        from ui.queue_editor import render_queue_editor
+        render_queue_editor(player)
 
         st.markdown("</div>", unsafe_allow_html=True)
 
@@ -261,6 +245,8 @@ elif menu == "📚 Biblioteca de Mídias":
                     player.set_queue(filtered_lib, start_index=idx)
                     player.play(track)
                     st.rerun()
+                from ui.queue_editor import render_enqueue_actions
+                render_enqueue_actions(player, track)
 
             with c_title:
                 st.markdown(f"**{track['title']}**")
@@ -497,15 +483,16 @@ def _on_play():
         player.play()
     st.rerun()
 
-render_controls_bar(
-    player=player,
-    on_play=_on_play,
-    on_pause=pause_audio,
-    on_stop=stop_audio,
-    on_prev=prev_audio,
-    on_next=next_audio,
-    on_seek=seek_audio,
-    on_volume=volume_audio,
-    on_shuffle=toggle_shuffle,
-    on_repeat=toggle_repeat,
-)
+with transport_slot:
+    render_controls_bar(
+        player=player,
+        on_play=_on_play,
+        on_pause=pause_audio,
+        on_stop=stop_audio,
+        on_prev=prev_audio,
+        on_next=next_audio,
+        on_seek=seek_audio,
+        on_volume=volume_audio,
+        on_shuffle=toggle_shuffle,
+        on_repeat=toggle_repeat,
+    )

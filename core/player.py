@@ -4,6 +4,7 @@ import time
 import threading
 import queue
 from typing import List, Dict, Any, Optional
+from core.playback_queue import EditableQueue, queue_entry
 
 try:
     import pygame
@@ -96,10 +97,11 @@ class _PygameThread(threading.Thread):
             return None
 
 
-class AudioPlayer:
+class AudioPlayer(EditableQueue):
     def __init__(self, browser=False):
         self.browser = browser
         self.command_version = 0
+        self.queue_version = 0
         self.queue: List[Dict[str, Any]] = []
         self.original_queue: List[Dict[str, Any]] = []
         self.current_index: int = -1
@@ -138,14 +140,15 @@ class AudioPlayer:
     # ------------------------------------------------------------------
 
     def set_queue(self, tracks: List[Dict[str, Any]], start_index: int = 0):
-        self.original_queue = list(tracks)
-        self.queue = list(tracks)
+        self.queue = [queue_entry(track) for track in tracks]
+        self.original_queue = list(self.queue)
+        self.queue_version += 1
         if self.shuffle_mode:
             random.shuffle(self.queue)
-            self.current_index = 0
+            self.current_index = 0 if tracks else -1
         else:
             self.current_index = (
-                start_index if 0 <= start_index < len(tracks) else 0
+                (start_index if 0 <= start_index < len(tracks) else 0) if tracks else -1
             )
 
     # ------------------------------------------------------------------
@@ -162,12 +165,13 @@ class AudioPlayer:
             for idx, item in enumerate(self.queue):
                 item_path = resolve_filepath(item.get("filepath", ""))
                 item["filepath"] = item_path
-                if item_path == filepath:
+                if (item.get("_queue_id") == track.get("_queue_id") if track.get("_queue_id") else item_path == filepath):
                     self.current_index = idx
                     found = True
                     break
             if not found:
-                self.queue.insert(0, track)
+                self.queue.insert(0, queue_entry(track))
+                self._queue_changed()
                 self.current_index = 0
 
         target = self.get_current_track()

@@ -416,3 +416,55 @@ integração no app, testes de interface e documentação. Ambos usam Agent: Cod
 Spec: SPEC/2026-11-16-smart-playlists.md. Enviar os commits para origin/main sem
 reescrever o histórico. A validação anterior aprovou 32 testes; o CI remoto será
 acionado pelo push. Esta operação não cria nem valida um deploy Streamlit público.
+
+
+---
+
+# AP2 — 2026-11-18 — Fila editável
+
+## Pedido de David Tavares
+
+Adicione ao prompts.md
+faz uma fila de reprodução editável.
+
+## Resposta e implementação do agente
+
+Implementada fila editável na estrutura existente Python/Streamlit, sem reescrita.
+Na Biblioteca, Adicionar à fila oferece Tocar depois e Adicionar ao final. Na aba
+Tocando Agora, Subir/Descer/Remover da fila alteram apenas as próximas ocorrências;
+Limpar próximas mantém histórico e faixa atual. Adicionar à fila vazia não inicia áudio.
+Cada ocorrência tem identidade própria, permitindo a mesma música repetida na fila.
+Editar não remove arquivos nem altera playlists. Fila permanece isolada na sessão.
+
+A sincronização usa queue_version separado de command_version, com rejeição de
+feedback obsoleto. O navegador devolve a ordem real, inclusive após aleatório.
+Após edição explícita, aleatório é desativado e a ordem visível vira a nova base.
+O restante da fila é estimado pelos metadados e pelo relógio real do áudio atual,
+sem contar ciclos futuros de repetição. A atual e o histórico ficam protegidos.
+
+O teste real detectou remontagem do componente ao alternar abas. Corrigido com um
+contêiner estável de transporte. O E2E aguarda confirmação de queue_version em vez
+de esperas fixas, e verifica a identidade do elemento, eventos loadstart, pausa e posição.
+
+## Validação
+
+50 testes Python aprovados, incluindo regras existentes, UI Streamlit e operações da fila.
+E2E em Edge headless aprovado para inclusão, mover, remover, limpar, navegação entre
+abas e inclusão durante pausa, sem recarga da música atual. Também passaram regressões
+de MP3/WAV/FLAC, seek, anterior/próxima, repetição e aleatório.
+Git diff --check aprovado. Nenhum teste afirma audição humana ou validação do deploy público.
+
+Contagem local via tokenize/AST e linhas adicionadas no diff: 420 linhas Python
+acrescentadas, incluindo 249 de testes. Exclui comentários, docstrings e linhas vazias.
+Não conta as alterações HTML/JavaScript nem documentação e não é um relatório cloc.
+Especificação: SPEC/2026-11-18-editable-queue.md.
+Sem commit ou push nesta etapa.
+
+## Resposta final
+
+Fila editável implementada: tocar depois, adicionar ao final, subir/descer, remover
+próximas e limpar próximas, com duração estimada e músicas repetidas.
+Áudio e pausa preservados ao editar e navegar. 50 testes Python e E2E Edge aprovados.
+420 linhas Python acrescentadas, incluindo testes, sem comentários ou linhas vazias.
+Pedido e resposta registrados neste arquivo; especificação em SPEC/2026-11-18-editable-queue.md.
+Alterações locais, sem commit ou push.

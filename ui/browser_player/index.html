@@ -17,16 +17,30 @@ button:focus-visible,select:focus-visible{outline:3px solid #fff;outline-offset:
 <label>Repetir <select id="repeat"><option value="off">Desligado</option><option value="all">Todas</option><option value="one">Uma</option></select></label>
 </div>
 <div id="status" role="status" aria-live="polite">Pronto</div>
+<div id="remaining" aria-label="Tempo estimado restante da fila"></div>
 <script>
 const audio=document.getElementById('audio');
 const title=document.getElementById('title');
 const status=document.getElementById('status');
 const repeat=document.getElementById('repeat');
-let tracks=[], original=[], index=-1, command=-1, sequence=0, applying=false, shuffled=false;
+let tracks=[], original=[], index=-1, command=-1, queueVersion=-1, sequence=0, applying=false, shuffled=false;
 function send(type, data={}){window.parent.postMessage({isStreamlitMessage:true,type,...data},'*');}
 function report(state){
-  send('streamlit:setComponentValue',{value:{sequence:++sequence,command,id:tracks[index]?.id,position:audio.currentTime||0,status:state,repeat:repeat.value},dataType:'json'});
+  send('streamlit:setComponentValue',{value:{sequence:++sequence,command,queue_version:queueVersion,entry_id:tracks[index]?.entry_id,order:tracks.map(t=>t.entry_id),position:audio.currentTime||0,status:state,repeat:repeat.value,shuffled},dataType:'json'});
 }
+function updateRemaining(){
+  const current=Number.isFinite(audio.duration)?Math.max(0,audio.duration-audio.currentTime):0;
+  const pending=tracks.slice(index+1).reduce((sum,track)=>{
+    const duration=Number(track.duration);
+    return sum+(Number.isFinite(duration)&&duration>0?duration:0);
+  },0);
+  const seconds=Math.ceil(current+pending);
+  const hours=Math.floor(seconds/3600);
+  const minutes=Math.floor(seconds%3600/60);
+  const display=(hours?`${hours}:`:'')+String(minutes).padStart(2,'0')+':'+String(seconds%60).padStart(2,'0');
+  document.getElementById('remaining').textContent=`Tempo estimado da fila: ${display} (sem repetições)`;
+}
+audio.ontimeupdate=updateRemaining;
 async function start(){
   try {await audio.play();}
   catch(error){status.textContent='Clique em Play no controle de áudio para iniciar. '+error.message;report('paused');}
@@ -58,14 +72,16 @@ document.getElementById('previous').onclick=()=>{
 document.getElementById('stop').onclick=()=>{audio.pause();audio.currentTime=0;status.textContent='Parado';report('stopped');};
 repeat.onchange=()=>report(audio.paused?'paused':'playing');
 document.getElementById('shuffle').onclick=(event)=>{
-  const current=tracks[index]?.id;
+  const current=tracks[index]?.entry_id;
   shuffled=!shuffled;
   event.target.setAttribute('aria-pressed',String(shuffled));
   tracks=[...original];
   if(shuffled){
     for(let i=tracks.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[tracks[i],tracks[j]]=[tracks[j],tracks[i]];}
   }
-  index=tracks.findIndex(t=>t.id===current);
+  index=tracks.findIndex(t=>t.entry_id===current);
+  updateRemaining();
+  report(audio.paused?'paused':'playing');
 };
 audio.onended=()=>advance(true);
 audio.onplay=()=>{status.textContent='Reproduzindo';if(!applying)report('playing');};
@@ -77,21 +93,33 @@ audio.onwaiting=()=>{status.textContent='Carregando áudio…';};
 window.addEventListener('message',event=>{
   if(event.source!==window.parent||event.data.type!=='streamlit:render')return;
   const args=event.data.args;
-  if(args.command===command)return;
+  if(args.command===command && args.queue_version===queueVersion)return;
+  const transportChanged=args.command!==command;
+  const current=tracks[index]?.entry_id;
   command=args.command;
+  queueVersion=args.queue_version;
   original=args.queue;
   tracks=[...original];
   shuffled=false;
   document.getElementById('shuffle').setAttribute('aria-pressed','false');
-  index=tracks.findIndex(t=>t.id===args.selected);
-  audio.volume=Math.min(1,Math.max(0,args.volume));
-  repeat.value=args.repeat;
+  index=tracks.findIndex(t=>t.entry_id===(transportChanged?args.selected:current));
+  if(transportChanged){
+    audio.volume=Math.min(1,Math.max(0,args.volume));
+    repeat.value=args.repeat;
+  }
   for(const id of ['previous','next','stop','shuffle'])document.getElementById(id).disabled=!tracks.length;
-  if(index>=0)select(index,args.playing,args.position);
-  else{applying=true;audio.pause();audio.removeAttribute('src');audio.load();applying=false;}
-  send('streamlit:setFrameHeight',{height:250});
+  if(!transportChanged && index>=0){
+    title.textContent=tracks[index].title;
+    updateRemaining();
+    report(audio.paused?'paused':'playing');
+  }else{
+    if(index<0)index=tracks.findIndex(t=>t.entry_id===args.selected);
+    if(index>=0)select(index,args.playing,args.position);
+    else{applying=true;audio.pause();audio.removeAttribute('src');audio.load();applying=false;}
+  }
+  send('streamlit:setFrameHeight',{height:280});
 });
 send('streamlit:componentReady',{apiVersion:1});
-send('streamlit:setFrameHeight',{height:250});
+send('streamlit:setFrameHeight',{height:280});
 </script>
 </html>
