@@ -2,10 +2,11 @@
 
 import math
 import uuid
+from core.sources import is_local_track
 
 
 def queue_entry(track):
-    if not isinstance(track, dict) or not track.get("id"):
+    if not isinstance(track, dict) or not track.get("id") or not is_local_track(track):
         raise ValueError("Escolha uma faixa válida da biblioteca.")
     entry = dict(track)
     entry["_queue_id"] = uuid.uuid4().hex

@@ -12,6 +12,8 @@ def wait_queue_update(audio, previous):
 
 def check_queue_edits(page, frame, audio):
     audio.evaluate('''async a => {
+        for(let i=0;i<100 && (command<1 || tracks.length!==3 || a.readyState<1);i++) await new Promise(r=>setTimeout(r,50));
+        if(command<1 || tracks.length!==3 || a.readyState<1) throw new Error('Initial queue did not load');
         await a.play();
         a.currentTime=1;
         a.__queueProbe='preserved';
@@ -60,5 +62,5 @@ def check_queue_edits(page, frame, audio):
     page.keyboard.press('Escape')
     # Restore a predictable queue for the codec/transport regression tests.
     version = audio.evaluate('()=>queueVersion')
-    page.get_by_role('button', name='▶ Reproduzir Toda a Biblioteca na Fila').click()
+    page.get_by_role('button', name='▶ Reproduzir Áudios Locais da Biblioteca').click()
     wait_queue_update(audio, version)

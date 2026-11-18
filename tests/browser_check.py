@@ -3,6 +3,7 @@
 import io
 import math
 import os
+import re
 from pathlib import Path
 import socket
 import subprocess
@@ -29,7 +30,7 @@ def run():
             for extension in ('wav', 'flac', 'mp3'):
                 content = io.BytesIO()
                 sf.write(content, [0.1 * math.sin(2 * math.pi * 440 * i / 16000) for i in range(16000 * 30)], 16000, format=extension.upper())
-                content.name = 'test.' + extension
+                content.name = extension + ' test.' + extension
                 uploads.append(content)
             import_uploaded_files(uploads)
         finally:
@@ -59,9 +60,9 @@ def run():
                 page.get_by_label('Senha', exact=True).fill('temporary-test-password')
                 page.get_by_role('button', name='Continuar', exact=True).click()
                 page.get_by_text('📚 Biblioteca de Mídias', exact=True).click()
-                page.get_by_label('Ordenar por', exact=True).click()
-                page.get_by_role('option', name='Formato', exact=True).click()
-                page.get_by_role('button', name='▶ Reproduzir Toda a Biblioteca na Fila').click()
+                expect(page.get_by_role('button', name='▶ Play', exact=True)).to_have_count(3)
+                expect(page.get_by_test_id('stApp')).to_have_attribute('data-test-script-state', 'notRunning')
+                page.get_by_role('button', name='▶ Reproduzir Áudios Locais da Biblioteca').click()
                 # Locate by component URL rather than depending on Streamlit's name prefix.
                 frame = page.frame_locator('iframe[src*="media_play_browser"]')
                 audio = frame.locator('audio')

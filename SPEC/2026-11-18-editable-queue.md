@@ -68,3 +68,10 @@ e pausa, navegação entre abas sem remontagem, três codecs e controles existen
 420 linhas Python adicionadas, das quais 249 de testes, medidas com tokenize/AST e diff,
 excluindo comentários, docstrings e vazias. HTML/JS e documentação fora dessa contagem.
 Não equivale a relatório cloc. Sem commit, push ou comprovação do deploy nesta sessão.
+
+
+## Compatibilidade com integração remota de plataformas
+O merge preserva a biblioteca mista de links/arquivos. Apenas arquivos locais entram
+na fila de áudio: set_queue filtra links e enqueue os rejeita. Links continuam com
+abertura externa na biblioteca. Seleção da faixa local considera a posição original
+na coleção mista; ocorrências repetidas continuam distintas por _queue_id.

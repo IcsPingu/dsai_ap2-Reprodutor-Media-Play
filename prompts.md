@@ -417,6 +417,92 @@ Spec: SPEC/2026-11-16-smart-playlists.md. Enviar os commits para origin/main sem
 reescrever o histórico. A validação anterior aprovou 32 testes; o CI remoto será
 acionado pelo push. Esta operação não cria nem valida um deploy Streamlit público.
 
+---
+---
+
+# Biblioteca unificada e playlists com links
+
+## Pedido
+
+Continuar o fluxo OpenSpec do projeto para cadastrar links de plataformas
+musicais junto aos MP3s locais e misturar essas origens nas mesmas playlists.
+Após revisão da proposta, foi solicitada a aplicação da mudança
+`unified-music-library`.
+
+## Resultado verificado
+
+- Criados proposta, duas especificações, design e checklist em
+  `openspec/changes/unified-music-library/`.
+- Implementados cadastro manual de links HTTPS, identificação de serviços,
+  deduplicação e abertura no navegador, sem streaming ou download externo.
+- Importações preservam links; playlists mantêm os IDs e a ordem. Reprodução
+  local exclui links com aviso e preserva o `st.audio` existente.
+- Criado `.venv` com dependências; testes de desenvolvimento usam Playwright.
+- 18 testes automatizados passaram. O fluxo Chromium confirmou cadastro de
+  dois links, upload de MP3 silencioso, criação/recarga de playlist mista, edição,
+  abertura de destino interceptado, reprodução HTML5 e remoção sem apagar a
+  biblioteca. Dados reais não foram usados.
+- Disponibilidade dos serviços e saída física do Pygame não foram verificadas.
+  Evidências, comandos e avisos observados estão em `tests/README.md`.
+
+---
+
+# AP2 — 2026-11-16 — Integração com o trabalho do colega
+
+## Pedidos
+
+Usuário: "can you go and do more steps here, abased on what my coworker just commited?"
+
+Após identificar cinco commits novos e a sobreposição com os links locais,
+foi sugerido integrar contas, formatos e playlists inteligentes antes de novas
+integrações externas.
+
+Usuário: "i think we did not commit what we did last time so just implement and tell me after"
+
+## Implementação
+
+- Guardado snapshot de segurança do trabalho não commitado no stash
+  `Safety snapshot: platform links before coworker integration`.
+- Atualizada a base por fast-forward até `77c4c96` e reaplicados os links com
+  resolução dos conflitos, preservando os cinco commits e os registros anteriores.
+- Links agora usam namespaces das contas, lock por usuário e JSON atômico.
+  Importações MP3/WAV/FLAC preservam links; capas e metadados ficam na conta.
+- Biblioteca e regras inteligentes acrescentam Origem e Plataforma, mantendo
+  favoritos, filtros existentes e as playlists manuais. Duração externa
+  desconhecida não satisfaz regras numéricas.
+- Player web do colega preservado. Seleções inteligentes/manuais filtram links
+  antes da reprodução e avisam; coleções externas não interrompem o áudio.
+- Corrigida leitura de uploads MP3 sem nome que não eram reconhecidos pelo
+  detector automático, mantendo validação por parser nativo.
+- Atualizados testes, documentação e CI para executar também o fluxo misto.
+- Especificação complementar: `SPEC/2026-11-16-platform-links-integration.md`;
+  checklist da integração na seção 6 da mudança OpenSpec existente.
+
+## Evidência confirmada
+
+- 61 testes Python/AppTest passaram, incluindo os testes do colega, isolamento
+  entre contas, deduplicação concorrente, três formatos reais e regras por origem.
+- Compilação e validação OpenSpec estrita aprovadas.
+- `tests/browser_check.py` passou no Chromium: codecs MP3/WAV/FLAC, play, pausa,
+  seek, próxima/anterior, parada, repeat, shuffle e isolamento anônimo.
+- `tests/browser_flow.py` passou no Chromium com `page_errors: []`: cadastro/login,
+  dois links, uploads dos três formatos, recarga e edição de playlist mista,
+  destino externo interceptado, regra inteligente por origem sem interromper
+  áudio e isolamento de outra conta. A automação foi adaptada aos comboboxes
+  React Aria; digitar sem confirmar a opção não envia a regra ao servidor.
+- Não foi criado commit ou push. CI remoto, deploy e disponibilidade das
+  plataformas externas não foram verificados nesta integração.
+
+## Autorização para publicação
+
+Usuário: "can you commmit and push those"
+
+Resposta do agente: autorizado criar o commit da integração verificada e
+enviá-lo para `origin/main` no fork `IcsPingu/dsai_ap2-Reprodutor-Media-Play`,
+sem reescrever histórico. A validação local anterior aprovou 61 testes,
+os dois fluxos Chromium, compilação e OpenSpec. Este envio não comprova
+CI remoto aprovado nem deploy público.
+
 
 ---
 

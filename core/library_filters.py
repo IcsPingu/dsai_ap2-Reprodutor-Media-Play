@@ -2,6 +2,7 @@
 
 import os
 import unicodedata
+from core.sources import is_local_track, track_platform
 
 
 def normalized(value):
@@ -10,6 +11,8 @@ def normalized(value):
 
 
 def track_format(track):
+    if not is_local_track(track):
+        return ""
     return track.get("format") or os.path.splitext(track.get("filepath", ""))[1][1:].lower()
 
 
@@ -17,12 +20,17 @@ def missing_metadata(track):
     return any(not normalized(track.get(field, "")) or "desconhecido" in normalized(track.get(field, "")) for field in ("artist", "album"))
 
 
-def filter_library(tracks, query="", formats=(), artists=(), albums=(), favorites=False, incomplete=False, sort="title", descending=False):
+def filter_library(tracks, query="", formats=(), artists=(), albums=(), favorites=False, incomplete=False, sort="title", descending=False, sources=(), platforms=()):
     if sort not in ("title", "artist", "album", "duration", "format"):
         raise ValueError("Ordenação inválida")
     result = []
     search = normalized(query)
     for track in tracks:
+        source = "local" if is_local_track(track) else "external"
+        if sources and source not in sources:
+            continue
+        if platforms and track_platform(track) not in platforms:
+            continue
         if search and not any(search in normalized(track.get(field, "")) for field in ("title", "artist", "album")):
             continue
         if formats and track_format(track) not in formats:

@@ -19,6 +19,8 @@ from core.library import (
     import_uploaded_files,
     open_folder_picker_dialog,
     save_custom_cover,
+    add_external_track,
+    DuplicateTrackError,
 )
 from core.playlist import (
     load_playlists,
@@ -28,14 +30,17 @@ from core.playlist import (
     add_track_to_playlist,
     remove_track_from_playlist,
 )
-from core.player import AudioPlayer
 from core.user_storage import authenticate, register, select_user
 from core.library_filters import filter_library, missing_metadata, track_format
+from core.player import AudioPlayer, start_local_collection
+from core.sources import is_local_track, SOURCE_LABELS, track_platform
 from ui.components import (
     load_css,
     render_header,
     render_now_playing_panel,
     render_controls_bar,
+    render_track_origin,
+    render_external_link,
 )
 
 # Carrega estilização CSS do Windows Media Player
@@ -86,6 +91,27 @@ if "playlists" not in st.session_state:
     st.session_state.playlists = load_playlists()
 
 player: AudioPlayer = st.session_state.player
+
+
+def play_collection(tracks, selected_id=None):
+    """Todos os pontos de entrada compartilham a mesma política de fila local."""
+    started, skipped = start_local_collection(player, tracks, selected_id)
+    if not any(is_local_track(track) for track in tracks):
+        st.session_state.playback_feedback = (
+            "warning", "Não há faixas locais nesta coleção. Abra os links nos serviços."
+        )
+    elif not started:
+        st.session_state.playback_feedback = (
+            "warning", "Não foi possível reproduzir o áudio. Confira o arquivo local."
+        )
+    elif skipped:
+        st.session_state.playback_feedback = (
+            "info", f"{skipped} link(s) excluído(s) da fila local. Abra-os nos serviços."
+        )
+    else:
+        st.session_state.pop("playback_feedback", None)
+    st.rerun()
+
 
 # Callbacks para controles do player
 def play_track(track):
@@ -161,6 +187,13 @@ with st.sidebar:
 
 # Renderiza o cabeçalho principal WMP
 render_header()
+feedback = st.session_state.pop("playback_feedback", None)
+if feedback:
+    level, message = feedback
+    if level == "warning":
+        st.warning(message)
+    else:
+        st.info(message)
 
 # Keep the audio component at a stable position across navigation branches.
 transport_slot = st.container()
@@ -213,6 +246,8 @@ elif menu == "📚 Biblioteca de Mídias":
     search_query = st.text_input("🔍 Buscar por título, artista ou álbum:", "")
 
     library = st.session_state.library
+    sources = st.multiselect("Origem", list(SOURCE_LABELS))
+    platforms = st.multiselect("Plataforma", sorted({track_platform(t) for t in library}))
     formats = st.multiselect("Formato", ["mp3", "wav", "flac"])
     artists = st.multiselect("Artista", sorted({t.get("artist", "") for t in library if t.get("artist")}))
     albums = st.multiselect("Álbum", sorted({t.get("album", "") for t in library if t.get("album")}))
@@ -221,36 +256,41 @@ elif menu == "📚 Biblioteca de Mídias":
     sort_labels = {"Título": "title", "Artista": "artist", "Álbum": "album", "Duração": "duration", "Formato": "format"}
     sort_label = st.selectbox("Ordenar por", list(sort_labels))
     descending = st.checkbox("Ordem decrescente")
-    filtered_lib = filter_library(library, search_query, formats, artists, albums, favorites, incomplete, sort_labels[sort_label], descending)
+    filtered_lib = filter_library(
+        library, search_query, formats, artists, albums, favorites, incomplete,
+        sort_labels[sort_label], descending,
+        sources=[SOURCE_LABELS[source] for source in sources], platforms=platforms,
+    )
 
     if not filtered_lib:
-        st.warning("Nenhuma música encontrada na biblioteca local.")
+        st.warning("Nenhuma música encontrada na biblioteca.")
     else:
         st.markdown(f"**Exibindo {len(filtered_lib)} de {len(library)} faixas**")
 
         # Botão para reproduzir todas na fila
-        if st.button("▶ Reproduzir Toda a Biblioteca na Fila"):
-            player.set_queue(filtered_lib, start_index=0)
-            player.play(filtered_lib[0])
-            st.rerun()
+        if st.button("▶ Reproduzir Áudios Locais da Biblioteca"):
+            play_collection(filtered_lib)
 
         st.divider()
 
         # Tabela de Músicas
         for idx, track in enumerate(filtered_lib):
-            c_act, c_title, c_artist, c_album, c_dur, c_pl, c_edit = st.columns([1, 3.5, 2.5, 2, 1, 1.5, 1])
+            c_act, c_title, c_artist, c_album, c_dur, c_pl, c_edit = st.columns([2.2, 3.5, 2.5, 2, 1, 1.5, 1])
 
             with c_act:
-                if st.button("▶ Play", key=f"lib_play_{track['id']}"):
-                    player.set_queue(filtered_lib, start_index=idx)
-                    player.play(track)
-                    st.rerun()
-                from ui.queue_editor import render_enqueue_actions
-                render_enqueue_actions(player, track)
+                if not is_local_track(track):
+                    render_external_link(track)
+                else:
+                    if st.button("▶ Play", key=f"lib_play_{track['id']}"):
+                        play_collection(filtered_lib, track["id"])
+                    from ui.queue_editor import render_enqueue_actions
+                    render_enqueue_actions(player, track)
 
             with c_title:
-                st.markdown(f"**{track['title']}**")
-                st.caption(track_format(track).upper())
+                st.text(track["title"])
+                render_track_origin(track)
+                if is_local_track(track):
+                    st.caption(track_format(track).upper())
                 if missing_metadata(track):
                     st.caption("Metadados incompletos: artista ou álbum")
                 favorite = bool(track.get("favorite", False))
@@ -259,9 +299,9 @@ elif menu == "📚 Biblioteca de Mídias":
                     st.session_state.library = load_library()
                     st.rerun()
             with c_artist:
-                st.caption(track['artist'])
+                st.text(track['artist'])
             with c_album:
-                st.caption(track['album'])
+                st.text(track['album'])
             with c_dur:
                 st.caption(track.get('duration_str', '00:00'))
 
@@ -296,6 +336,9 @@ elif menu == "📚 Biblioteca de Mídias":
                     new_y = st.text_input("Ano", value=track["year"], key=f"edit_y_{track['id']}")
 
                     if st.button("Salvar Alterações", key=f"save_edit_{track['id']}"):
+                        if not new_t.strip() and not is_local_track(track):
+                            st.error("Informe o título da música.")
+                            continue
                         if uploaded_c:
                             save_custom_cover(track["id"], uploaded_c)
                         update_track_metadata(
@@ -359,13 +402,8 @@ elif menu == "🎵 Playlists":
 
         col_pl_act1, col_pl_act2, col_pl_act3 = st.columns([2, 1, 1])
         with col_pl_act1:
-            if st.button("▶ Reproduzir Playlist Inteira"):
-                if pl_tracks:
-                    player.set_queue(pl_tracks, start_index=0)
-                    player.play(pl_tracks[0])
-                    st.rerun()
-                else:
-                    st.warning("Esta playlist está vazia.")
+            if st.button("▶ Reproduzir Áudios Locais da Playlist"):
+                play_collection(pl_tracks)
 
         with col_pl_act2:
             with st.popover("✏️ Renomear"):
@@ -386,13 +424,17 @@ elif menu == "🎵 Playlists":
             st.caption("Playlist sem faixas. Adicione faixas na aba Biblioteca de Mídias.")
         else:
             for idx, tr in enumerate(pl_tracks):
-                col_pt1, col_pt2, col_pt3, col_pt4 = st.columns([0.5, 5, 2, 1])
+                col_pt1, col_pt2, col_pt3, col_pt_link, col_pt4 = st.columns([0.5, 5, 2, 2, 1])
                 with col_pt1:
                     st.write(f"{idx+1}.")
                 with col_pt2:
-                    st.markdown(f"**{tr['title']}** - <span style='color:#8ab4f8'>{escape(str(tr['artist']))}</span>", unsafe_allow_html=True)
+                    st.text(f"{tr['title']} - {tr['artist']}")
+                    render_track_origin(tr)
                 with col_pt3:
-                    st.caption(tr['album'])
+                    st.text(tr['album'])
+                with col_pt_link:
+                    if not is_local_track(tr):
+                        render_external_link(tr)
                 with col_pt4:
                     if st.button("❌ Remover", key=f"rm_pl_{selected_pl['id']}_{tr['id']}"):
                         remove_track_from_playlist(selected_pl["id"], tr["id"])
@@ -406,15 +448,38 @@ elif menu == "🎵 Playlists":
 # -----------------------------------------------------------------------------
 elif menu == "📁 Importar Áudios":
     st.markdown("<div class='wmp-card'>", unsafe_allow_html=True)
-    st.subheader("📁 Importar Músicas MP3")
+    st.subheader("📁 Importar Músicas e Links")
 
-    tab_upload, tab_folder = st.tabs(["🎵 Selecionar Arquivos de áudio (Explorador)", "📂 Escanear Pasta Inteira"])
+    tab_upload, tab_folder, tab_link = st.tabs([
+        "🎵 Selecionar Arquivos de áudio (Explorador)",
+        "📂 Escanear Pasta Inteira",
+        "🔗 Link de Plataforma",
+    ])
+
+    with tab_link:
+        st.info("Salve um link para abrir no serviço. Não há download nem streaming integrado.")
+        with st.form("import_link_form"):
+            link_url = st.text_input("URL HTTPS da música", key="link_url")
+            link_title = st.text_input("Título da música (obrigatório)", key="link_title")
+            link_artist = st.text_input("Artista (opcional)", key="link_artist")
+            link_album = st.text_input("Álbum (opcional)", key="link_album")
+            submit_link = st.form_submit_button("🔗 Adicionar Link")
+        if submit_link:
+            try:
+                updated = add_external_track(link_url, link_title, link_artist, link_album)
+            except DuplicateTrackError as error:
+                st.warning(str(error))
+            except ValueError as error:
+                st.error(str(error))
+            else:
+                st.session_state.library = updated
+                st.success("Link adicionado à biblioteca!")
 
     with tab_upload:
         st.markdown("Clique abaixo para abrir o **Explorador de Arquivos do Windows** e selecionar um ou vários arquivos `.mp3`, `.wav` e `.flac` do seu computador:")
         
         uploaded_files = st.file_uploader(
-            "Selecione as músicas MP3:",
+            "Selecione as músicas MP3, WAV ou FLAC:",
             type=["mp3", "wav", "flac"],
             accept_multiple_files=True,
             help="Abre o explorador de arquivos nativo do seu sistema",
@@ -478,8 +543,8 @@ def _on_play():
     if player.is_paused:
         player.resume()
     else:
-        if not player.queue and st.session_state.get("library"):
-            player.set_queue(st.session_state.library, start_index=0)
+        if not player.queue:
+            play_collection(st.session_state.get("library", []))
         player.play()
     st.rerun()
 
