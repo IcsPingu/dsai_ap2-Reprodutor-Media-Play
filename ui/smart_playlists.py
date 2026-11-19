@@ -130,6 +130,9 @@ def render_smart_playlists(player):
     lookup = {p["id"]: p for p in playlists}
     identity = st.selectbox("Playlist inteligente", list(lookup), format_func=lambda value: lookup[value]["name"], key="smart_selected")
     playlist = lookup[identity]
+    warning = st.session_state.get("smart_playback_warning")
+    if warning and warning[0] == identity:
+        st.warning(warning[1])
     try:
         tracks = resolve_playlist_tracks(playlist, library)
     except ValueError as error:
@@ -138,8 +141,12 @@ def render_smart_playlists(player):
     show_tracks(tracks)
     if st.button("Reproduzir seleção inteligente", disabled=not tracks):
         if not any(is_local_track(track) for track in tracks):
-            st.warning("Não há faixas locais nesta seleção. Abra os links nos serviços.")
+            st.session_state.smart_playback_warning = (
+                identity, "Não há faixas locais nesta seleção. Abra os links nos serviços."
+            )
+            st.rerun()
         else:
+            st.session_state.pop("smart_playback_warning", None)
             started, skipped = start_local_collection(player, tracks)
             if started:
                 if skipped:
@@ -155,6 +162,7 @@ def render_smart_playlists(player):
         if st.button("Salvar alterações da inteligente", key=f"smart_edit_{identity}_save"):
             try:
                 update_smart_playlist(identity, name, definition)
+                st.session_state.pop("smart_playback_warning", None)
                 st.session_state.playlists = load_playlists()
                 st.rerun()
             except ValueError as error:

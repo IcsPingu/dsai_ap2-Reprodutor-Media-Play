@@ -283,3 +283,21 @@ explícita desativa aleatório e preserva a ordem visível como nova base. O tem
 A fila fica somente na sessão. Reproduzir uma playlist inteira substitui a fila.
 
 Especificação: [Fila editável](SPEC/2026-11-18-editable-queue.md).
+
+
+## Histórico e estatísticas
+
+A aba **Histórico** mostra reproduções confirmadas da conta e ranking das mais ouvidas.
+Uma reprodução conta após 5 segundos efetivos, ou metade de uma faixa mais curta.
+Pausa, seek e atualizações da interface não contam como novas reproduções. Reproduzir
+novamente ou um ciclo de repetição gera outra tentativa, que precisa atingir o mínimo.
+Abrir links de Spotify/YouTube e outros serviços não gera registro de reprodução.
+
+Filtre por **Hoje**, **Últimos 7 dias** ou **Todo o histórico**; horários usam São Paulo.
+Há ações para tocar novamente e adicionar ao final da fila. Arquivos indisponíveis
+continuam no histórico, com os botões desabilitados. **Limpar meu histórico** pede
+confirmação e remove os registros da conta, preservando biblioteca, playlists e áudio.
+
+O histórico também é temporário no Community Cloud. As estatísticas contam reproduções
+confirmadas; não afirmam audição humana nem estimam tempo ouvido pela duração das faixas.
+Especificação: [Histórico por usuário](SPEC/2026-11-19-listening-history.md).

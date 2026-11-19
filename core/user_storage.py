@@ -13,6 +13,7 @@ import sqlite3
 import threading
 import json
 import tempfile
+import time
 
 _user = ContextVar("media_user", default=None)
 _locks = {}
@@ -110,7 +111,14 @@ def atomic_json(path, value):
             json.dump(value, output, ensure_ascii=False, indent=2)
             output.flush()
             os.fsync(output.fileno())
-        os.replace(temporary, target)
+        for attempt in range(5):
+            try:
+                os.replace(temporary, target)
+                break
+            except PermissionError:
+                if os.name != "nt" or attempt == 4:
+                    raise
+                time.sleep(.01 * (attempt + 1))
     finally:
         if os.path.exists(temporary):
             os.unlink(temporary)

@@ -18,6 +18,7 @@ from playwright.sync_api import sync_playwright, expect
 from core.user_storage import register, select_user, reset_user
 from core.library import import_uploaded_files
 from browser_queue_checks import check_queue_edits
+from browser_history_checks import check_history
 
 
 def run():
@@ -40,7 +41,7 @@ def run():
             port = sock.getsockname()[1]
         url = f'http://127.0.0.1:{port}'
         log = open(Path(directory) / 'server.log', 'w', encoding='utf-8')
-        process = subprocess.Popen([sys.executable, '-m', 'streamlit', 'run', 'app.py', '--server.headless=true', f'--server.port={port}', '--browser.gatherUsageStats=false'], stdout=log, stderr=log)
+        process = subprocess.Popen([sys.executable, '-m', 'streamlit', 'run', 'app.py', '--server.headless=true', f'--server.port={port}', '--browser.gatherUsageStats=false', '--server.fileWatcherType=none'], stdout=log, stderr=log)
         try:
             for _ in range(100):
                 try:
@@ -67,6 +68,7 @@ def run():
                 frame = page.frame_locator('iframe[src*="media_play_browser"]')
                 audio = frame.locator('audio')
                 expect(audio).to_be_visible()
+                check_history(page, frame, audio)
                 check_queue_edits(page, frame, audio)
                 mime_order = audio.evaluate('()=>tracks.map(t=>t.src.split(";")[0])')
                 assert len(mime_order) == 3
@@ -86,7 +88,10 @@ def run():
                     audio.evaluate('(a) => a.pause()')
                     position = audio.evaluate('(a) => a.currentTime')
                     page.wait_for_timeout(350)
-                    assert abs(audio.evaluate('(a) => a.currentTime') - position) < .1, 'Pause did not freeze media clock'
+                    assert abs(audio.evaluate('(a) => a.currentTime') - position) < .1, (
+                        'Pause did not freeze media clock', position,
+                        audio.evaluate('(a)=>({time:a.currentTime,paused:a.paused,ready:a.readyState,command,queueVersion,entry:tracks[index]?.entry_id})'),
+                    )
                     audio.evaluate('(a) => {a.currentTime=2;}')
                     page.wait_for_timeout(150)
                     assert abs(audio.evaluate('(a) => a.currentTime') - 2) < .3

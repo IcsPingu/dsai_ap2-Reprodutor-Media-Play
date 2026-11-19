@@ -171,8 +171,9 @@ with st.sidebar:
 
     menu = st.radio(
         "Navegação",
-        ["🎧 Tocando Agora", "📚 Biblioteca de Mídias", "🎵 Playlists", "📁 Importar Áudios"],
+        ["🎧 Tocando Agora", "📚 Biblioteca de Mídias", "🎵 Playlists", "📁 Importar Áudios", "📊 Histórico"],
         label_visibility="collapsed",
+        key="navigation_menu",
     )
 
     st.divider()
@@ -185,18 +186,43 @@ with st.sidebar:
         st.markdown("### 🔊 Tocando")
         st.caption(player.get_current_track().get("title", ""))
 
+def _on_play():
+    if player.is_paused:
+        player.resume()
+    else:
+        if not player.queue:
+            play_collection(st.session_state.get("library", []))
+        player.play()
+    st.rerun()
+
+
 # Renderiza o cabeçalho principal WMP
 render_header()
+feedback_area = st.empty()
 feedback = st.session_state.pop("playback_feedback", None)
 if feedback:
     level, message = feedback
     if level == "warning":
-        st.warning(message)
+        feedback_area.warning(message)
     else:
-        st.info(message)
+        feedback_area.info(message)
 
 # Keep the audio component at a stable position across navigation branches.
 transport_slot = st.container()
+with transport_slot:
+    render_controls_bar(
+        player=player,
+        on_play=_on_play,
+        on_pause=pause_audio,
+        on_stop=stop_audio,
+        on_prev=prev_audio,
+        on_next=next_audio,
+        on_seek=seek_audio,
+        on_volume=volume_audio,
+        on_shuffle=toggle_shuffle,
+        on_repeat=toggle_repeat,
+    )
+
 
 # -----------------------------------------------------------------------------
 # TAB 1: TOCANDO AGORA
@@ -446,6 +472,10 @@ elif menu == "🎵 Playlists":
 # -----------------------------------------------------------------------------
 # TAB 4: IMPORTAR ÁUDIOS
 # -----------------------------------------------------------------------------
+elif menu == "📊 Histórico":
+    from ui.listening_history import render_listening_history
+    render_listening_history(player)
+
 elif menu == "📁 Importar Áudios":
     st.markdown("<div class='wmp-card'>", unsafe_allow_html=True)
     st.subheader("📁 Importar Músicas e Links")
@@ -535,29 +565,3 @@ elif menu == "📁 Importar Áudios":
                 st.error("Por favor, selecione uma pasta válida.")
 
     st.markdown("</div>", unsafe_allow_html=True)
-
-# -----------------------------------------------------------------------------
-# BARRA DE CONTROLES INFERIOR FLUTUANTE
-# -----------------------------------------------------------------------------
-def _on_play():
-    if player.is_paused:
-        player.resume()
-    else:
-        if not player.queue:
-            play_collection(st.session_state.get("library", []))
-        player.play()
-    st.rerun()
-
-with transport_slot:
-    render_controls_bar(
-        player=player,
-        on_play=_on_play,
-        on_pause=pause_audio,
-        on_stop=stop_audio,
-        on_prev=prev_audio,
-        on_next=next_audio,
-        on_seek=seek_audio,
-        on_volume=volume_audio,
-        on_shuffle=toggle_shuffle,
-        on_repeat=toggle_repeat,
-    )

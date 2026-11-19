@@ -29,12 +29,17 @@ def choose_rule_option(page, key, label):
         container = page.locator(f".st-key-{key}")
         widget = container.get_by_role("combobox")
         expect(widget).to_be_visible()
+        expect(page.get_by_test_id("stApp")).to_have_attribute(
+            "data-test-script-state", "notRunning"
+        )
         # React Aria usa input de busca. Confirmar a opção real (não apenas texto
         # digitado) é necessário para enviar o valor ao servidor.
         widget.fill(label)
         if widget.get_attribute("aria-expanded") != "true":
             container.locator('button[aria-haspopup="listbox"]').click()
-        page.get_by_role("option", name=label, exact=True).click(force=True)
+        expect(page.get_by_role("option", name=label, exact=True)).to_be_visible()
+        widget.press("ArrowDown")
+        widget.press("Enter")
         expect(widget).to_have_value(label)
         expect(page.get_by_test_id("stApp")).to_have_attribute(
             "data-test-script-state", "notRunning"
@@ -64,6 +69,7 @@ def main():
             server = subprocess.Popen([
                 sys.executable, "-m", "streamlit", "run", "app.py",
                 "--server.headless=true", "--server.address=127.0.0.1",
+                "--server.fileWatcherType=none",
                 f"--server.port={port}",
             ], cwd=PROJECT, env=env, stdout=log, stderr=subprocess.STDOUT)
             try:
@@ -113,6 +119,7 @@ def main():
                     page.get_by_text("🎵 Playlists", exact=True).click()
                     page.get_by_role("textbox", name="Nome da Nova Playlist:").fill("Browser mixed")
                     page.get_by_role("button", name="➕ Criar Playlist", exact=True).click()
+                    expect(page.get_by_role("heading", name=re.compile("Playlist:.*Browser mixed"))).to_be_visible()
                     page.get_by_text("📚 Biblioteca de Mídias", exact=True).click()
                     expect(page.get_by_role("button", name="+ Playlist", exact=True)).to_have_count(5)
                     for index, track in enumerate(stored):

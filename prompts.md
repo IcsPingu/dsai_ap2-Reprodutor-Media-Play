@@ -554,3 +554,38 @@ próximas e limpar próximas, com duração estimada e músicas repetidas.
 420 linhas Python acrescentadas, incluindo testes, sem comentários ou linhas vazias.
 Pedido e resposta registrados neste arquivo; especificação em SPEC/2026-11-18-editable-queue.md.
 Alterações locais, sem commit ou push.
+
+---
+
+# AP2 — 2026-11-19 — Histórico de reprodução e estatísticas
+
+## Pedido de David Tavares
+
+adicione ao prompts.md
+Implemente histórico de reprodução e estatísticas por usuário.
+
+## Resposta do agente
+
+Implementado histórico por conta na aba Histórico, com períodos Hoje, Últimos 7 dias
+ e Todo o histórico, total de reproduções confirmadas, músicas diferentes e ranking.
+Os horários seguem o fuso de São Paulo. Cada registro preserva título, artista e álbum.
+É possível tocar novamente, adicionar à fila e limpar o próprio histórico com confirmação.
+Arquivos removidos continuam no histórico, com ações de reprodução desabilitadas.
+
+Uma reprodução é registrada após 5 segundos efetivamente ouvidos, ou metade da duração
+para faixas mais curtas. Pausas e saltos de posição não somam escuta. Confirmações do
+navegador são validadas e deduplicadas no servidor; replay inicia outra tentativa.
+Limpar o histórico invalida confirmações antigas sem alterar músicas, playlists ou fila.
+Links externos não são contabilizados. Os dados continuam temporários no Community Cloud.
+
+O componente usa fragmento Streamlit com restauração da identidade para isolar contas
+e evitar que confirmações de escuta interrompam editores. O player permanece montado
+em posição estável durante a navegação. A gravação atômica recebeu tentativas breves
+para bloqueios transitórios de arquivo no Windows, preservando o original em falhas.
+
+Especificação: SPEC/2026-11-19-listening-history.md. README atualizado.
+Validação: 97 testes Python aprovados; testes no Edge aprovados para histórico,
+fila editável, MP3/WAV/FLAC, playlists mistas/inteligentes e isolamento entre contas.
+Testes usam áudio sintético; não foi realizada audição física nem validação do deploy.
+Revisão visual da aba Histórico e git diff --check realizados.
+Nenhum commit ou push realizado nesta etapa.

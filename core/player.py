@@ -122,6 +122,7 @@ class AudioPlayer(EditableQueue):
     def __init__(self, browser=False):
         self.browser = browser
         self.command_version = 0
+        self.last_action = None
         self.queue_version = 0
         self.queue: List[Dict[str, Any]] = []
         self.original_queue: List[Dict[str, Any]] = []
@@ -146,6 +147,7 @@ class AudioPlayer(EditableQueue):
     # ------------------------------------------------------------------
 
     def _send(self, action: str, **kwargs) -> Any:
+        self.last_action = action
         self.command_version += 1
         if self._thread and self._thread.initialized:
             return self._thread.send(action, **kwargs)
